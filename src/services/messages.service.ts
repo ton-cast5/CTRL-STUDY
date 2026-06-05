@@ -64,6 +64,29 @@ export async function getUnreadCount(profileId: string): Promise<number> {
   return count ?? 0;
 }
 
+export async function getUnreadCountsByRequest(
+  profileId: string,
+  requestIds: string[],
+): Promise<Map<string, number>> {
+  const map = new Map<string, number>();
+  if (requestIds.length === 0) return map;
+
+  const { data, error } = await supabase
+    .from('messages')
+    .select('request_id')
+    .eq('to_profile_id', profileId)
+    .is('read_at', null)
+    .in('request_id', requestIds);
+
+  if (error) throw error;
+
+  for (const row of data ?? []) {
+    const requestId = row.request_id as string;
+    map.set(requestId, (map.get(requestId) ?? 0) + 1);
+  }
+  return map;
+}
+
 export async function markMessagesAsRead(
   requestId: string,
   profileId: string,

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { IconMessage } from '../components/Icons';
 import { useApp } from '../context/AppContext';
-import { getLastMessagesForRequests } from '../services/messages.service';
+import { getLastMessagesForRequests, getUnreadCountsByRequest } from '../services/messages.service';
 import { supabase } from '../lib/supabase';
 import type { ChatMessage, TutorRequest } from '../types/database';
 import './Screens.css';
@@ -18,6 +18,7 @@ function formatTime(iso: string) {
 export function Mensajes() {
   const { role, profile, requests, openChat, refreshUnreadCount } = useApp();
   const [previews, setPreviews] = useState<Map<string, ChatMessage>>(new Map());
+  const [unreadByRequest, setUnreadByRequest] = useState<Map<string, number>>(new Map());
 
   const accepted = useMemo(
     () => requests.filter((r) => r.status === 'aceptada'),
@@ -25,14 +26,23 @@ export function Mensajes() {
   );
 
   useEffect(() => {
-    const load = () => {
+    const load = async () => {
       if (accepted.length === 0) {
         setPreviews(new Map());
+        setUnreadByRequest(new Map());
         return;
       }
-      getLastMessagesForRequests(accepted.map((r) => r.id))
-        .then(setPreviews)
-        .catch(() => undefined);
+      const ids = accepted.map((r) => r.id);
+      try {
+        const [lastMessages, unreadCounts] = await Promise.all([
+          getLastMessagesForRequests(ids),
+          profile ? getUnreadCountsByRequest(profile.id, ids) : Promise.resolve(new Map()),
+        ]);
+        setPreviews(lastMessages);
+        setUnreadByRequest(unreadCounts);
+      } catch {
+        /* ignore */
+      }
     };
     load();
 
@@ -57,16 +67,6 @@ export function Mensajes() {
       ? `Tutor · ${req.subject}`
       : `${req.studentName} · ${req.subject}`;
 
-  const isUnread = (req: TutorRequest) => {
-    const last = previews.get(req.id);
-    return (
-      last != null &&
-      last.toProfileId === profile?.id &&
-      last.fromProfileId !== profile?.id &&
-      !last.readAt
-    );
-  };
-
   return (
     <div className="screen animate-in">
       <header className="screen-header">
@@ -87,10 +87,11 @@ export function Mensajes() {
       <ul className="messages-inbox stagger-1">
         {accepted.map((req) => {
           const last = previews.get(req.id);
-          const unread = isUnread(req);
+          const unreadCount = unreadByRequest.get(req.id) ?? 0;
+          const hasUnread = unreadCount > 0;
 
           return (
-            <li key={req.id} className={`message-thread-card ${unread ? 'has-unread' : ''}`}>
+            <li key={req.id} className={`message-thread-card ${hasUnread ? 'has-unread' : ''}`}>
               <div className="message-thread-top">
                 <span className="mini-avatar">
                   {labelFor(req)
@@ -101,10 +102,17 @@ export function Mensajes() {
                     .toUpperCase()}
                 </span>
                 <div className="message-thread-info">
-                  <strong>{labelFor(req)}</strong>
+                  <div className="message-thread-title-row">
+                    <strong>{labelFor(req)}</strong>
+                    {hasUnread && (
+                      <span className="thread-unread-badge" aria-label={`${unreadCount} no leídos`}>
+                        {unreadCount}
+                      </span>
+                    )}
+                  </div>
                   <span>{subtitleFor(req)}</span>
                   {last ? (
-                    <p className={`message-preview ${unread ? 'unread' : ''}`}>
+                    <p className={`message-preview ${hasUnread ? 'unread' : ''}`}>
                       {last.fromProfileId === profile?.id ? 'Tú: ' : ''}
                       {last.body}
                     </p>
@@ -119,7 +127,9 @@ export function Mensajes() {
                 className="btn-primary btn-sm"
                 onClick={() => openChat(req.id)}
               >
-                {unread ? 'Ver mensaje nuevo' : 'Abrir chat'}
+                {hasUnread
+                  ? `Ver ${unreadCount} mensaje${unreadCount === 1 ? '' : 's'} nuevo${unreadCount === 1 ? '' : 's'}`
+                  : 'Abrir chat'}
               </button>
             </li>
           );

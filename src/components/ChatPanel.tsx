@@ -59,12 +59,15 @@ export function ChatPanel() {
                   </span>
                 )}
                 <div className={`chat-bubble ${mine ? 'me' : 'other'}`}>{m.body}</div>
-                <time className="chat-time">
-                  {new Date(m.createdAt).toLocaleTimeString('es-MX', {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
-                </time>
+                <div className="chat-meta">
+                  <time className="chat-time">
+                    {new Date(m.createdAt).toLocaleTimeString('es-MX', {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </time>
+                  {mine && m.readAt && <span className="chat-seen">Visto</span>}
+                </div>
               </div>
             );
           })}

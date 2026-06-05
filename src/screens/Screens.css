@@ -847,6 +847,48 @@
   color: var(--text-muted);
 }
 
+.chat-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.chat-bubble-wrap.me .chat-meta {
+  justify-content: flex-end;
+}
+
+.chat-seen {
+  font-size: 0.62rem;
+  color: var(--emerald-deep);
+  font-weight: 600;
+}
+
+.chat-bubble-wrap.me .chat-seen {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.message-thread-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.thread-unread-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  padding: 0 0.35rem;
+  border-radius: 999px;
+  background: var(--emerald-deep);
+  color: var(--white);
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
 .messages-inbox {
   list-style: none;
   display: flex;
