@@ -1,0 +1,203 @@
+.onboarding {
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  background:
+    radial-gradient(ellipse at top right, var(--emerald-pale) 0%, transparent 50%),
+    radial-gradient(ellipse at bottom left, var(--gold-soft) 0%, transparent 40%),
+    var(--bg);
+}
+
+.onboarding-card {
+  width: 100%;
+  max-width: 440px;
+  background: var(--white);
+  border-radius: var(--radius);
+  padding: 2rem 1.75rem;
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border);
+}
+
+.onboarding-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.onboarding-logo {
+  width: 100px;
+  height: 100px;
+  object-fit: contain;
+  margin: 0 auto 1rem;
+}
+
+.onboarding-header h1 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin-bottom: 0.25rem;
+}
+
+.tagline {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--emerald-mid);
+  margin-bottom: 0.75rem;
+}
+
+.subtitle {
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.onboarding-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.mode-switch {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6rem;
+}
+
+.mode-switch .btn-outline {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.55rem 0.6rem;
+  background: var(--white);
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.mode-switch .btn-outline.active {
+  background: var(--emerald-deep);
+  color: var(--white);
+}
+
+.role-selector legend {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 0.75rem;
+}
+
+.role-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.role-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 1rem 0.75rem;
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  transition: var(--transition);
+  text-align: center;
+}
+
+.role-card:hover {
+  border-color: var(--emerald-light);
+  background: var(--emerald-pale);
+}
+
+.role-card.selected {
+  border-color: var(--emerald-deep);
+  background: var(--emerald-pale);
+  box-shadow: 0 0 0 3px rgba(10, 92, 62, 0.12);
+}
+
+.role-icon {
+  font-size: 1.5rem;
+}
+
+.role-title {
+  font-weight: 600;
+  font-size: 0.9375rem;
+  color: var(--text);
+}
+
+.role-desc {
+  font-size: 0.6875rem;
+  color: var(--text-muted);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.field span {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.field input {
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  font-size: 0.9375rem;
+  transition: var(--transition);
+}
+
+.field textarea,
+.field select {
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  font-size: 0.9375rem;
+  transition: var(--transition);
+}
+
+.field input:focus {
+  outline: none;
+  border-color: var(--emerald-mid);
+  box-shadow: 0 0 0 3px rgba(26, 122, 82, 0.15);
+}
+
+.btn-primary {
+  width: 100%;
+  padding: 0.875rem 1.5rem;
+  background: var(--emerald-deep);
+  color: var(--white);
+  font-weight: 600;
+  font-size: 0.9375rem;
+  border-radius: 12px;
+  transition: var(--transition);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--emerald-mid);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(10, 92, 62, 0.25);
+}
+
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.onboarding-footer {
+  text-align: center;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 1.5rem;
+}
+
+.brand-ctrl {
+  color: var(--emerald-deep);
+}
+
+.brand-study {
+  color: var(--emerald-light);
+}

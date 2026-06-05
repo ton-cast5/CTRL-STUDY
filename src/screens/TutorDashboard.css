@@ -1,0 +1,309 @@
+.tutor-panel .tutor-stats-row {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+@media (min-width: 768px) {
+  .tutor-panel .tutor-stats-row {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.tutor-stat-card {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  position: relative;
+  transition: var(--transition);
+}
+
+.tutor-stat-card:hover {
+  box-shadow: var(--shadow);
+}
+
+.tutor-stat-card svg {
+  color: var(--emerald-deep);
+}
+
+.tutor-stat-gold svg {
+  color: var(--gold);
+}
+
+.tutor-stat-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--emerald-deep);
+  line-height: 1.2;
+}
+
+.tutor-stat-gold .tutor-stat-value {
+  color: #8a7020;
+}
+
+.tutor-stat-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.tutor-stat-alert {
+  border-color: rgba(201, 162, 39, 0.4);
+  background: linear-gradient(180deg, var(--gold-soft) 0%, var(--white) 70%);
+}
+
+.tutor-stat-badge {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--gold);
+}
+
+.tutor-section {
+  margin-bottom: 1.5rem;
+}
+
+.section-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.85rem;
+}
+
+.section-title-row h3 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.section-title-row h3 svg {
+  color: var(--emerald-deep);
+}
+
+.section-count {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.appointments-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.appointment-card {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  transition: var(--transition);
+}
+
+.appointment-card:hover {
+  box-shadow: var(--shadow);
+}
+
+.appointment-card.status-pendiente {
+  border-left: 3px solid var(--gold);
+}
+
+.appointment-date-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 72px;
+}
+
+.apt-day {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--emerald-deep);
+  text-transform: capitalize;
+}
+
+.apt-time {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.appointment-student {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.appointment-student strong {
+  display: block;
+  font-size: 0.875rem;
+}
+
+.appointment-student span:last-child {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.appointment-meta {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.modality-tag,
+.status-tag {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  padding: 0.2rem 0.5rem;
+  border-radius: 6px;
+}
+
+.modality-tag {
+  background: var(--emerald-pale);
+  color: var(--emerald-deep);
+}
+
+.modality-tag.online {
+  background: #eef2ff;
+  color: #4338ca;
+}
+
+.status-tag.confirmada {
+  background: var(--emerald-pale);
+  color: var(--emerald-deep);
+}
+
+.status-tag.pendiente {
+  background: var(--gold-soft);
+  color: #8a7020;
+}
+
+.btn-icon-msg {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  color: var(--emerald-deep);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--transition);
+}
+
+.btn-icon-msg:hover {
+  background: var(--emerald-deep);
+  color: var(--white);
+  border-color: var(--emerald-deep);
+}
+
+.enrolled-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+}
+
+@media (min-width: 600px) {
+  .enrolled-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 960px) {
+  .enrolled-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.enrolled-card {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem;
+  transition: var(--transition);
+}
+
+.enrolled-card:hover {
+  box-shadow: var(--shadow);
+}
+
+.enrolled-top {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin-bottom: 0.5rem;
+}
+
+.enrolled-top strong {
+  display: block;
+  font-size: 0.875rem;
+}
+
+.enrolled-top span {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.enrolled-subject {
+  font-size: 0.8125rem;
+  color: var(--emerald-mid);
+  font-weight: 500;
+  margin-bottom: 0.65rem;
+}
+
+.enrolled-progress {
+  margin-bottom: 0.75rem;
+}
+
+.enrolled-progress-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.6875rem;
+  color: var(--text-muted);
+  margin-bottom: 0.35rem;
+}
+
+.tutor-tip {
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+  line-height: 1.55;
+  border-left: 3px solid var(--gold);
+}
+
+.tutor-tip strong {
+  color: var(--emerald-deep);
+}
+
+.btn-sm-confirm {
+  padding: 0.5rem 0.85rem;
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+@media (max-width: 520px) {
+  .appointment-card {
+    grid-template-columns: 1fr;
+    gap: 0.65rem;
+  }
+
+  .btn-icon-msg {
+    justify-self: end;
+  }
+}
