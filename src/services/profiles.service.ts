@@ -13,6 +13,16 @@ export async function getProfileByMatricula(matricula: string): Promise<Profile 
   return data as Profile | null;
 }
 
+export async function getProfileById(id: string): Promise<Profile | null> {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', id)
+    .maybeSingle();
+  if (error) throw error;
+  return data as Profile | null;
+}
+
 export async function loginWithCredentials(
   matricula: string,
   password: string,

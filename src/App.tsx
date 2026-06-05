@@ -10,7 +10,15 @@ import { useApp } from './context/AppContext';
 import { ChatPanel } from './components/ChatPanel';
 
 function App() {
-  const { profile, role, userName, logout, loading, error, screen, navigate } = useApp();
+  const { profile, role, userName, logout, loading, sessionRestoring, error, screen, navigate } = useApp();
+
+  if (sessionRestoring) {
+    return (
+      <div className="global-loading session-restore" role="status">
+        Restaurando sesión...
+      </div>
+    );
+  }
 
   if (!profile) {
     return <Onboarding />;

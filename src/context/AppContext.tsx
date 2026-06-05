@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
@@ -21,7 +22,7 @@ import type {
   UserRole,
 } from '../types/database';
 import type { Screen } from '../types/navigation';
-import { loginWithCredentials, registerProfile, setProfileOnlineStatus } from '../services/profiles.service';
+import { loginWithCredentials, registerProfile, setProfileOnlineStatus, getProfileById } from '../services/profiles.service';
 import { getTutors } from '../services/tutors.service';
 import { getAppointments, countSessionsThisWeek } from '../services/appointments.service';
 import { getResources } from '../services/resources.service';
@@ -41,6 +42,7 @@ import {
 } from '../services/requests.service';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { supabase } from '../lib/supabase';
+import { saveSession, clearSession, getSavedSessionId } from '../lib/session';
 
 interface AppContextValue {
   profile: Profile | null;
@@ -48,6 +50,7 @@ interface AppContextValue {
   userName: string;
   tutorId: string | null;
   loading: boolean;
+  sessionRestoring: boolean;
   error: string | null;
   screen: Screen;
   agendaTutorId: string | null;
@@ -85,6 +88,7 @@ const AppContext = createContext<AppContextValue | null>(null);
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [sessionRestoring, setSessionRestoring] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [screen, setScreen] = useState<Screen>('dashboard');
@@ -98,6 +102,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [requests, setRequests] = useState<TutorRequest[]>([]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [activeRequestId, setActiveRequestId] = useState<string | null>(null);
+  const activeRequestIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    activeRequestIdRef.current = activeRequestId;
+  }, [activeRequestId]);
 
   const role = profile?.role ?? 'student';
   const userName = profile?.name ?? '';
@@ -243,8 +252,29 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (profile) refreshAll();
-  }, [profile, refreshAll]);
+    if (!isSupabaseConfigured()) {
+      setSessionRestoring(false);
+      return;
+    }
+
+    const savedId = getSavedSessionId();
+    if (!savedId) {
+      setSessionRestoring(false);
+      return;
+    }
+
+    getProfileById(savedId)
+      .then((p) => {
+        if (p) {
+          setProfile(p);
+          setProfileOnlineStatus(p.id, true).catch(() => undefined);
+        } else {
+          clearSession();
+        }
+      })
+      .catch(() => clearSession())
+      .finally(() => setSessionRestoring(false));
+  }, []);
 
   useEffect(() => {
     if (!activeRequestId || !profile) {
@@ -258,29 +288,67 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [activeRequestId, profile, refreshMessages, refreshUnreadCount]);
 
   useEffect(() => {
+    if (profile) refreshAll();
+  }, [profile, refreshAll]);
+
+  useEffect(() => {
     if (!profile) return;
-    const acceptedIds = requests.filter((r) => r.status === 'aceptada').map((r) => r.id);
+
+    const profileId = profile.id;
 
     const requestsChannel = supabase
-      .channel(`tutor-requests-${profile.id}`)
+      .channel(`tutor-requests-${profileId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tutor_requests' }, () => {
         refreshRequests().catch(() => undefined);
       })
       .subscribe();
 
     const messagesChannel = supabase
-      .channel(`messages-${profile.id}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, (payload) => {
-        const row = payload.new as { request_id?: string } | null;
-        const requestId = row?.request_id ?? activeRequestId;
-        refreshUnreadCount().catch(() => undefined);
-        if (requestId && (requestId === activeRequestId || acceptedIds.includes(requestId))) {
-          if (requestId === activeRequestId) {
-            refreshMessages(activeRequestId).catch(() => undefined);
+      .channel(`messages-${profileId}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'messages' },
+        (payload) => {
+          const row = payload.new as {
+            request_id: string;
+            from_profile_id: string;
+            to_profile_id: string;
+          };
+          if (row.from_profile_id !== profileId && row.to_profile_id !== profileId) return;
+
+          refreshUnreadCount().catch(() => undefined);
+
+          const openId = activeRequestIdRef.current;
+          if (openId && row.request_id === openId) {
+            refreshMessages(openId).catch(() => undefined);
+            if (row.to_profile_id === profileId) {
+              markMessagesAsRead(openId, profileId)
+                .then(() => refreshUnreadCount())
+                .catch(() => undefined);
+            }
           }
-          refreshRequests().catch(() => undefined);
-        }
-      })
+        },
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'messages' },
+        (payload) => {
+          const row = payload.new as {
+            request_id?: string;
+            from_profile_id?: string;
+            to_profile_id?: string;
+          };
+          if (!row?.request_id) return;
+          if (row.from_profile_id !== profileId && row.to_profile_id !== profileId) return;
+
+          refreshUnreadCount().catch(() => undefined);
+
+          const openId = activeRequestIdRef.current;
+          if (openId && row.request_id === openId) {
+            refreshMessages(openId).catch(() => undefined);
+          }
+        },
+      )
       .subscribe();
 
     const presenceChannel = supabase
@@ -295,15 +363,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       supabase.removeChannel(messagesChannel);
       supabase.removeChannel(presenceChannel);
     };
-  }, [
-    profile,
-    activeRequestId,
-    requests,
-    refreshRequests,
-    refreshMessages,
-    refreshTutors,
-    refreshUnreadCount,
-  ]);
+  }, [profile, refreshRequests, refreshMessages, refreshTutors, refreshUnreadCount]);
 
   const login = useCallback(
     async (matricula: string, password: string, userRole: UserRole) => {
@@ -311,6 +371,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setError(null);
       try {
         const p = await loginWithCredentials(matricula, password, userRole);
+        saveSession(p.id);
         setProfile(p);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Error al iniciar sesión');
@@ -327,6 +388,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setError(null);
     try {
       const p = await registerProfile(input);
+      saveSession(p.id);
       setProfile(p);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al registrar cuenta');
@@ -392,6 +454,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(() => {
     if (profile) setProfileOnlineStatus(profile.id, false).catch(() => undefined);
+    clearSession();
     setProfile(null);
     setScreen('dashboard');
     setAgendaTutorId(null);
@@ -412,6 +475,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     userName,
     tutorId,
     loading,
+    sessionRestoring,
     error,
     screen,
     agendaTutorId,
