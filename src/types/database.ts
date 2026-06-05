@@ -119,6 +119,8 @@ export interface Resource {
   size: string;
   uploadedBy: string;
   fileUrl?: string | null;
+  storagePath?: string | null;
+  fileName?: string | null;
 }
 
 export interface ProgressStats {
@@ -157,6 +159,8 @@ export interface CreateResourceInput {
   size: string;
   uploadedBy: string;
   fileUrl?: string;
+  storagePath?: string;
+  fileName?: string;
 }
 
 export interface CreateReviewInput {

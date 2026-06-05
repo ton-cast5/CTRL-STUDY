@@ -25,7 +25,7 @@ import type { Screen } from '../types/navigation';
 import { loginWithCredentials, registerProfile, setProfileOnlineStatus, getProfileById } from '../services/profiles.service';
 import { getTutors } from '../services/tutors.service';
 import { getAppointments, countSessionsThisWeek } from '../services/appointments.service';
-import { getResources } from '../services/resources.service';
+import { getResourcesForProfile } from '../services/resources.service';
 import { getEnrollmentsByTutor } from '../services/enrollments.service';
 import { getStudentProgress } from '../services/progress.service';
 import {
@@ -152,9 +152,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [role, tutorId, profile?.id]);
 
   const refreshResources = useCallback(async () => {
-    const data = await getResources();
+    if (!profile) {
+      setResources([]);
+      return;
+    }
+    const data = await getResourcesForProfile(profile);
     setResources(data);
-  }, []);
+  }, [profile]);
 
   const refreshEnrollments = useCallback(async () => {
     if (!tutorId) {
@@ -358,12 +362,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
       })
       .subscribe();
 
+    const resourcesChannel = supabase
+      .channel(`resources-${profileId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'resources' }, () => {
+        refreshResources().catch(() => undefined);
+      })
+      .subscribe();
+
     return () => {
       supabase.removeChannel(requestsChannel);
       supabase.removeChannel(messagesChannel);
       supabase.removeChannel(presenceChannel);
+      supabase.removeChannel(resourcesChannel);
     };
-  }, [profile, refreshRequests, refreshMessages, refreshTutors, refreshUnreadCount]);
+  }, [profile, refreshRequests, refreshMessages, refreshTutors, refreshUnreadCount, refreshResources]);
 
   const login = useCallback(
     async (matricula: string, password: string, userRole: UserRole) => {

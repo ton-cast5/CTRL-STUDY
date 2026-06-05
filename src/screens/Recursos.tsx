@@ -1,10 +1,19 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { subjects } from '../data/mockData';
 import { IconDownload, IconFile, IconSearch, IconX } from '../components/Icons';
 import { useApp } from '../context/AppContext';
-import { createResource, updateResource, deleteResource } from '../services/resources.service';
+import {
+  createResourceWithFile,
+  updateResource,
+  deleteResource,
+  replaceResourceFile,
+} from '../services/resources.service';
+import { formatFileSize, getDocumentDownloadUrl, inferResourceType } from '../services/storage.service';
 import { shortName } from '../types/database';
 import './Screens.css';
+
+const ACCEPTED_TYPES =
+  '.pdf,.doc,.docx,.txt,.md,.zip,.rar,.py,.java,.js,.ts,.jsx,.tsx,.html,.css,.sql,.json,.ppt,.pptx,.xls,.xlsx';
 
 export function Recursos() {
   const { resources, role, tutorId, userName, refreshResources } = useApp();
@@ -16,9 +25,11 @@ export function Recursos() {
     title: '',
     subject: 'Python',
     type: 'PDF' as 'PDF' | 'Guía' | 'Código',
-    size: '',
   });
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const filtered = useMemo(() => {
     return resources.filter((r) => {
@@ -40,35 +51,68 @@ export function Recursos() {
   }, [filtered]);
 
   const resetForm = () => {
-    setForm({ title: '', subject: 'Python', type: 'PDF', size: '' });
+    setForm({ title: '', subject: 'Python', type: 'PDF' });
+    setSelectedFile(null);
     setEditingId(null);
+    setFormError(null);
     setShowForm(false);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const handleFileChange = (file: File | null) => {
+    setSelectedFile(file);
+    setFormError(null);
+    if (file && !form.title.trim()) {
+      const baseName = file.name.replace(/\.[^.]+$/, '');
+      setForm((prev) => ({
+        ...prev,
+        title: baseName,
+        type: inferResourceType(file.name),
+      }));
+    } else if (file) {
+      setForm((prev) => ({ ...prev, type: inferResourceType(file.name) }));
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.title.trim()) return;
+
+    if (!tutorId) {
+      setFormError('Tu cuenta de tutor no tiene perfil de tutor vinculado.');
+      return;
+    }
+
+    if (!editingId && !selectedFile) {
+      setFormError('Selecciona un archivo para subir.');
+      return;
+    }
+
     setSubmitting(true);
+    setFormError(null);
     try {
       if (editingId) {
         await updateResource(editingId, {
           title: form.title.trim(),
           subject: form.subject,
           type: form.type,
-          size: form.size || '—',
         });
-      } else {
-        await createResource({
-          tutorId: role === 'tutor' ? tutorId : null,
+        if (selectedFile) {
+          await replaceResourceFile(editingId, tutorId, selectedFile);
+        }
+      } else if (selectedFile) {
+        await createResourceWithFile({
+          tutorId,
+          file: selectedFile,
           title: form.title.trim(),
           subject: form.subject,
-          type: form.type,
-          size: form.size || '—',
           uploadedBy: shortName(userName),
         });
       }
       await refreshResources();
       resetForm();
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : 'Error al guardar el recurso');
     } finally {
       setSubmitting(false);
     }
@@ -79,16 +123,22 @@ export function Recursos() {
       title: file.title,
       subject: file.subject,
       type: file.type,
-      size: file.size,
     });
+    setSelectedFile(null);
     setEditingId(file.id);
+    setFormError(null);
     setShowForm(true);
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const handleDelete = async (id: string, title: string) => {
-    if (!confirm(`¿Eliminar "${title}"?`)) return;
-    await deleteResource(id);
-    await refreshResources();
+    if (!confirm(`¿Eliminar "${title}"? Se borrará también el archivo del repositorio.`)) return;
+    try {
+      await deleteResource(id);
+      await refreshResources();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'No se pudo eliminar el recurso');
+    }
   };
 
   const canManage = role === 'tutor';
@@ -99,18 +149,42 @@ export function Recursos() {
         <div>
           <p className="screen-eyebrow">Material de estudio</p>
           <h2>Repositorio de Recursos</h2>
-          <p className="screen-desc">Guías, PDFs y código compartido por tutores DACYTI</p>
+          <p className="screen-desc">
+            {canManage
+              ? 'Sube documentos para que tus alumnos asesorados los descarguen'
+              : 'Guías, PDFs y código compartidos por tus tutores'}
+          </p>
         </div>
         {canManage && (
           <button type="button" className="btn-primary btn-sm" onClick={() => setShowForm(!showForm)}>
-            {showForm ? 'Cerrar' : '+ Agregar recurso'}
+            {showForm ? 'Cerrar' : '+ Subir recurso'}
           </button>
         )}
       </header>
 
       {showForm && canManage && (
         <form className="card-panel resource-form stagger-1" onSubmit={handleSubmit}>
-          <h3>{editingId ? 'Editar recurso' : 'Nuevo recurso'}</h3>
+          <h3>{editingId ? 'Editar recurso' : 'Subir nuevo recurso'}</h3>
+
+          <label className="field-inline">
+            <span>Archivo {editingId ? '(opcional, reemplaza el actual)' : '*'}</span>
+            <div className="file-upload-zone">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept={ACCEPTED_TYPES}
+                onChange={(e) => handleFileChange(e.target.files?.[0] ?? null)}
+              />
+              {selectedFile ? (
+                <p className="file-selected">
+                  <IconFile size={16} /> {selectedFile.name} · {formatFileSize(selectedFile.size)}
+                </p>
+              ) : (
+                <p className="file-hint">PDF, guías, código, ZIP, etc. (máx. 50 MB)</p>
+              )}
+            </div>
+          </label>
+
           <label className="field-inline">
             <span>Título</span>
             <input
@@ -138,17 +212,12 @@ export function Recursos() {
               <option value="Código">Código</option>
             </select>
           </label>
-          <label className="field-inline">
-            <span>Tamaño</span>
-            <input
-              placeholder="Ej. 2.4 MB"
-              value={form.size}
-              onChange={(e) => setForm({ ...form, size: e.target.value })}
-            />
-          </label>
+
+          {formError && <p className="form-error">{formError}</p>}
+
           <div className="form-actions">
             <button type="submit" className="btn-primary btn-sm" disabled={submitting}>
-              {submitting ? 'Guardando...' : editingId ? 'Actualizar' : 'Publicar'}
+              {submitting ? 'Subiendo...' : editingId ? 'Actualizar' : 'Publicar recurso'}
             </button>
             <button type="button" className="btn-outline btn-sm" onClick={resetForm}>
               Cancelar
@@ -196,12 +265,14 @@ export function Recursos() {
                     <p className="resource-meta">
                       <span className={`type-badge type-${file.type.toLowerCase()}`}>{file.type}</span>
                       {file.size} · {file.uploadedBy}
+                      {file.fileName && <span className="resource-filename"> · {file.fileName}</span>}
                     </p>
                   </div>
                   <div className="resource-actions">
                     {file.fileUrl ? (
                       <a
-                        href={file.fileUrl}
+                        href={getDocumentDownloadUrl(file.fileUrl, file.fileName)}
+                        download={file.fileName ?? file.title}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="btn-download"
@@ -210,9 +281,9 @@ export function Recursos() {
                         <IconDownload size={18} />
                       </a>
                     ) : (
-                      <button type="button" className="btn-download" aria-label={`Descargar ${file.title}`}>
-                        <IconDownload size={18} />
-                      </button>
+                      <span className="resource-no-file" title="Sin archivo adjunto">
+                        Sin archivo
+                      </span>
                     )}
                     {canManage && (
                       <>
@@ -242,7 +313,11 @@ export function Recursos() {
       </div>
 
       {filtered.length === 0 && (
-        <p className="empty-state">No hay recursos que coincidan con tu búsqueda.</p>
+        <p className="empty-state">
+          {role === 'student'
+            ? 'Cuando un tutor acepte tu solicitud de asesoría, aquí verás los recursos que comparta contigo.'
+            : 'No hay recursos que coincidan con tu búsqueda. Sube el primero con "+ Subir recurso".'}
+        </p>
       )}
     </div>
   );

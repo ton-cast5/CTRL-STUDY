@@ -587,6 +587,74 @@
   border-color: var(--emerald-deep);
 }
 
+.resource-form {
+  margin-bottom: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.resource-form h3 {
+  font-size: 1rem;
+  margin-bottom: 0.25rem;
+}
+
+.file-upload-zone {
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 1rem;
+  background: var(--bg-soft);
+  transition: var(--transition);
+}
+
+.file-upload-zone:hover {
+  border-color: var(--emerald);
+  background: var(--emerald-pale);
+}
+
+.file-upload-zone input[type='file'] {
+  width: 100%;
+  font-size: 0.85rem;
+}
+
+.file-selected {
+  margin-top: 0.5rem;
+  font-size: 0.8rem;
+  color: var(--emerald-deep);
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.file-hint {
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.form-error {
+  color: #b91c1c;
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+.resource-filename {
+  opacity: 0.85;
+}
+
+.resource-no-file {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  padding: 0 0.35rem;
+}
+
+.resource-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+
 /* Progreso */
 .progress-circles {
   display: grid;
