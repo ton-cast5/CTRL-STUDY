@@ -83,8 +83,8 @@ export function Onboarding() {
             </button>
           </div>
 
-          <fieldset className="role-selector">
-            <legend>¿Cómo deseas ingresar?</legend>
+          <div className="role-selector">
+            <p className="role-selector-label">¿Cómo deseas ingresar?</p>
             <div className="role-options">
               <button
                 type="button"
@@ -105,13 +105,13 @@ export function Onboarding() {
                 <span className="role-desc">Ofrezco asesorías DACYTI</span>
               </button>
             </div>
-          </fieldset>
+          </div>
 
           <label className="field">
-            <span>Matrícula UJAT</span>
+            <span>Ingrese su matrícula</span>
             <input
               type="text"
-              placeholder="Ej. 2023001234 (tutor demo: 2020001001)"
+              placeholder="Ingrese su matrícula UJAT"
               value={matricula}
               onChange={(e) => setMatricula(e.target.value)}
               required
