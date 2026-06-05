@@ -16,7 +16,7 @@ function formatTime(iso: string) {
 }
 
 export function Mensajes() {
-  const { role, profile, requests, openChat, refreshUnreadCount } = useApp();
+  const { role, profile, requests, openChat, refreshUnreadCount, unreadCount } = useApp();
   const [previews, setPreviews] = useState<Map<string, ChatMessage>>(new Map());
   const [unreadByRequest, setUnreadByRequest] = useState<Map<string, number>>(new Map());
 
@@ -24,6 +24,10 @@ export function Mensajes() {
     () => requests.filter((r) => r.status === 'aceptada'),
     [requests],
   );
+
+  useEffect(() => {
+    refreshUnreadCount().catch(() => undefined);
+  }, [refreshUnreadCount]);
 
   useEffect(() => {
     const load = async () => {
@@ -72,7 +76,14 @@ export function Mensajes() {
       <header className="screen-header">
         <div>
           <p className="screen-eyebrow">Comunicación</p>
-          <h2>Mis mensajes</h2>
+          <h2 className="screen-title-row">
+            Mis mensajes
+            {unreadCount > 0 && (
+              <span className="screen-unread-badge" aria-label={`${unreadCount} no leídos`}>
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </span>
+            )}
+          </h2>
           <p className="screen-desc">
             {role === 'student'
               ? 'Aquí ves lo que te escriben tus tutores y puedes responder'

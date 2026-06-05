@@ -26,6 +26,28 @@
   line-height: 1.2;
 }
 
+.screen-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.screen-unread-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.5rem;
+  height: 1.5rem;
+  padding: 0 0.45rem;
+  border-radius: 999px;
+  background: #ef4444;
+  color: var(--white);
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
 .screen-desc {
   font-size: 0.875rem;
   color: var(--text-muted);

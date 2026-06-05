@@ -224,7 +224,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const navigate = useCallback((to: Screen, options?: { agendaTutorId?: string }) => {
     setScreen(to);
     if (options?.agendaTutorId) setAgendaTutorId(options.agendaTutorId);
-  }, []);
+    if (to === 'mensajes') refreshUnreadCount().catch(() => undefined);
+  }, [refreshUnreadCount]);
 
   const openChat = useCallback(
     async (requestId: string) => {

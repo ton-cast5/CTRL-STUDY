@@ -69,9 +69,14 @@ export function Layout({
               onClick={() => onNavigate(id)}
             >
               <Icon size={20} />
-              <span>{label}</span>
+              <span className="nav-label">
+                {label}
+                {id === 'mensajes' && unreadCount > 0 && (
+                  <span className="nav-unread-inline"> ({unreadCount})</span>
+                )}
+              </span>
               {id === 'mensajes' && unreadCount > 0 && (
-                <span className="nav-badge">{unreadCount}</span>
+                <span className="nav-badge">{unreadCount > 99 ? '99+' : unreadCount}</span>
               )}
             </button>
           ))}
@@ -104,10 +109,15 @@ export function Layout({
             <span className="bottom-nav-icon-wrap">
               <Icon size={22} />
               {id === 'mensajes' && unreadCount > 0 && (
-                <span className="nav-badge bottom">{unreadCount}</span>
+                <span className="nav-badge bottom">{unreadCount > 99 ? '99+' : unreadCount}</span>
               )}
             </span>
-            <span>{label}</span>
+            <span className="bottom-nav-label">
+              {label}
+              {id === 'mensajes' && unreadCount > 0 && (
+                <span className="bottom-nav-unread"> ({unreadCount})</span>
+              )}
+            </span>
           </button>
         ))}
       </nav>
