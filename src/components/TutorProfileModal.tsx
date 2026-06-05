@@ -8,9 +8,10 @@ import './TutorProfileModal.css';
 interface TutorProfileModalProps {
   tutor: Tutor;
   onClose: () => void;
+  onAgendar: () => void;
 }
 
-export function TutorProfileModal({ tutor, onClose }: TutorProfileModalProps) {
+export function TutorProfileModal({ tutor, onClose, onAgendar }: TutorProfileModalProps) {
   const { profile, role, refreshTutors } = useApp();
   const [reviews, setReviews] = useState(tutor.reviews);
   const [showReviewForm, setShowReviewForm] = useState(false);
@@ -147,9 +148,18 @@ export function TutorProfileModal({ tutor, onClose }: TutorProfileModalProps) {
           </ul>
         </section>
 
-        <button type="button" className="btn-primary modal-cta" onClick={onClose}>
-          Agendar con {tutor.name.split(' ')[0]}
-        </button>
+        {role === 'student' && (
+          <button
+            type="button"
+            className="btn-primary modal-cta"
+            onClick={() => {
+              onClose();
+              onAgendar();
+            }}
+          >
+            Agendar con {tutor.name.split(' ')[0]}
+          </button>
+        )}
       </div>
     </div>
   );

@@ -5,12 +5,12 @@ import { IconMessage, IconX } from './Icons';
 export function ChatPanel() {
   const {
     activeRequestId,
-    setActiveRequestId,
     requests,
     messages,
     profile,
     role,
     sendChatMessage,
+    closeChat,
   } = useApp();
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
@@ -33,7 +33,7 @@ export function ChatPanel() {
   if (!activeRequestId || !request) return null;
 
   return (
-    <div className="chat-overlay" onClick={() => setActiveRequestId(null)} role="presentation">
+    <div className="chat-overlay" onClick={closeChat} role="presentation">
       <div className="chat-panel" onClick={(e) => e.stopPropagation()}>
         <header className="chat-header">
           <div>
@@ -43,7 +43,7 @@ export function ChatPanel() {
             </h3>
             <p className="chat-subtitle">{request.subject}</p>
           </div>
-          <button type="button" className="btn-icon-msg" onClick={() => setActiveRequestId(null)}>
+          <button type="button" className="btn-icon-msg" onClick={closeChat}>
             <IconX size={16} />
           </button>
         </header>

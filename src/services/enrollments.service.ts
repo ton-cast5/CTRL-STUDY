@@ -4,6 +4,7 @@ import { generateId } from '../types/database';
 
 function mapEnrollment(row: {
   id: string;
+  student_id: string | null;
   name: string;
   semester: number;
   subject: string;
@@ -13,6 +14,7 @@ function mapEnrollment(row: {
 }): EnrolledStudent {
   return {
     id: row.id,
+    studentId: row.student_id,
     name: row.name,
     semester: row.semester,
     subject: row.subject,

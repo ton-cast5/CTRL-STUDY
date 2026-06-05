@@ -6,7 +6,7 @@ import { useApp } from '../context/AppContext';
 import './Screens.css';
 
 export function Dashboard() {
-  const { tutors, loading, requests, createRequest, setActiveRequestId } = useApp();
+  const { tutors, loading, requests, createRequest, openChat, navigate } = useApp();
   const [search, setSearch] = useState('');
   const [subject, setSubject] = useState('Todas');
   const [semester, setSemester] = useState('Todos');
@@ -124,7 +124,7 @@ export function Dashboard() {
                 <button
                   type="button"
                   className="btn-primary btn-sm"
-                  onClick={() => setActiveRequestId(requestByTutor.get(tutor.id)!.id)}
+                  onClick={() => openChat(requestByTutor.get(tutor.id)!.id)}
                 >
                   Enviar mensaje
                 </button>
@@ -171,7 +171,11 @@ export function Dashboard() {
       )}
 
       {selectedTutor && (
-        <TutorProfileModal tutor={selectedTutor} onClose={() => setSelectedTutor(null)} />
+        <TutorProfileModal
+          tutor={selectedTutor}
+          onClose={() => setSelectedTutor(null)}
+          onAgendar={() => navigate('agenda', { agendaTutorId: selectedTutor.id })}
+        />
       )}
     </div>
   );

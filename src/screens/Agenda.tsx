@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { timeSlots, type UserRole } from '../data/mockData';
 import { IconCalendar, IconCheck, IconClock, IconX } from '../components/Icons';
 import { useApp } from '../context/AppContext';
-import { createAppointment, updateAppointmentStatus, cancelAppointment } from '../services/appointments.service';
+import { updateAppointmentStatus, cancelAppointment } from '../services/appointments.service';
 import { addSessionProgress } from '../services/progress.service';
 import { incrementEnrollmentSession } from '../services/enrollments.service';
 import { incrementTutorSessions } from '../services/tutors.service';
@@ -130,34 +130,47 @@ function TutorAgendaView() {
 }
 
 function StudentAgendaView() {
-  const { tutors, profile, refreshAppointments } = useApp();
+  const { tutors, agendaTutorId, requests, createRequest } = useApp();
   const [selectedTutor, setSelectedTutor] = useState(tutors[0]?.id ?? '');
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedTime, setSelectedTime] = useState('');
   const [modality, setModality] = useState<'Presencial' | 'En línea'>('Presencial');
+  const [note, setNote] = useState('');
   const [confirmed, setConfirmed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  const tutor = tutors.find((t) => t.id === selectedTutor);
+  useEffect(() => {
+    if (agendaTutorId && tutors.some((t) => t.id === agendaTutorId)) {
+      setSelectedTutor(agendaTutorId);
+    }
+  }, [agendaTutorId, tutors]);
 
-  const handleConfirm = async () => {
-    if (!selectedDate || !selectedTime || !tutor || !profile) return;
+  const tutor = tutors.find((t) => t.id === selectedTutor);
+  const existingRequest = requests.find((r) => r.tutorId === selectedTutor);
+
+  const handleSubmitRequest = async () => {
+    if (!selectedDate || !selectedTime || !tutor) return;
     setSubmitting(true);
     try {
-      await createAppointment({
+      const scheduleNote = [
+        note.trim(),
+        `Fecha preferida: ${selectedDate}`,
+        `Hora: ${selectedTime}`,
+        `Modalidad: ${modality}`,
+      ]
+        .filter(Boolean)
+        .join(' · ');
+
+      await createRequest({
         tutorId: tutor.id,
-        studentId: profile.id,
-        studentName: profile.name,
-        studentAvatar: profile.avatar,
+        tutorName: tutor.name,
         subject: tutor.specialty,
-        date: selectedDate,
-        time: selectedTime,
-        modality,
+        note: scheduleNote,
       });
-      await refreshAppointments();
       setConfirmed(true);
       setSelectedDate('');
       setSelectedTime('');
+      setNote('');
       setTimeout(() => setConfirmed(false), 4000);
     } finally {
       setSubmitting(false);
@@ -176,7 +189,7 @@ function StudentAgendaView() {
         <div>
           <p className="screen-eyebrow">Programación</p>
           <h2>Agenda de Asesorías</h2>
-          <p className="screen-desc">Programa sesiones de tutoría 1 a 1</p>
+          <p className="screen-desc">Envía tu solicitud de asesoría al tutor seleccionado</p>
         </div>
         <div className="header-icon">
           <IconCalendar size={28} />
@@ -205,10 +218,16 @@ function StudentAgendaView() {
         </section>
 
         <section className="card-panel stagger-2">
-          <h3>Fecha y hora</h3>
+          <h3>Detalles de la solicitud</h3>
+
+          {existingRequest && (
+            <p className={`status-banner status-${existingRequest.status}`}>
+              Solicitud actual: <strong>{existingRequest.status}</strong>
+            </p>
+          )}
 
           <label className="field-inline">
-            <span>Fecha</span>
+            <span>Fecha preferida</span>
             <input
               type="date"
               min={minDate}
@@ -225,7 +244,7 @@ function StudentAgendaView() {
             </select>
           </label>
 
-          <p className="slots-label">Horarios disponibles</p>
+          <p className="slots-label">Horario preferido</p>
           <div className="time-slots">
             {timeSlots.map((slot) => (
               <button
@@ -239,13 +258,23 @@ function StudentAgendaView() {
             ))}
           </div>
 
+          <label className="field-inline">
+            <span>Nota para el tutor (opcional)</span>
+            <textarea
+              rows={2}
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="Cuéntale al tutor qué necesitas..."
+            />
+          </label>
+
           <div className="booking-summary">
             <p>
               <strong>Tutor:</strong> {tutor.name} · {tutor.specialty}
             </p>
             {selectedDate && selectedTime && (
               <p>
-                <strong>Sesión:</strong>{' '}
+                <strong>Preferencia:</strong>{' '}
                 {new Date(selectedDate + 'T12:00:00').toLocaleDateString('es-MX', {
                   weekday: 'long',
                   day: 'numeric',
@@ -259,16 +288,28 @@ function StudentAgendaView() {
           <button
             type="button"
             className="btn-primary btn-agendar"
-            disabled={!selectedDate || !selectedTime || submitting}
-            onClick={handleConfirm}
+            disabled={
+              !selectedDate ||
+              !selectedTime ||
+              submitting ||
+              existingRequest?.status === 'pendiente' ||
+              existingRequest?.status === 'aceptada'
+            }
+            onClick={handleSubmitRequest}
           >
-            {submitting ? 'Agendando...' : 'Agendar Sesión'}
+            {submitting
+              ? 'Enviando...'
+              : existingRequest?.status === 'pendiente'
+                ? 'Solicitud enviada'
+                : existingRequest?.status === 'aceptada'
+                  ? 'Solicitud aceptada'
+                  : 'Enviar solicitud de asesoría'}
           </button>
 
           {confirmed && (
             <div className="toast-success animate-in">
               <IconCheck size={20} />
-              <span>¡Sesión agendada con {tutor.name}!</span>
+              <span>¡Solicitud enviada a {tutor.name}!</span>
             </div>
           )}
         </section>

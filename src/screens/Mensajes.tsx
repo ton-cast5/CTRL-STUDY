@@ -16,7 +16,7 @@ function formatTime(iso: string) {
 }
 
 export function Mensajes() {
-  const { role, profile, requests, setActiveRequestId } = useApp();
+  const { role, profile, requests, openChat, refreshUnreadCount } = useApp();
   const [previews, setPreviews] = useState<Map<string, ChatMessage>>(new Map());
 
   const accepted = useMemo(
@@ -39,12 +39,15 @@ export function Mensajes() {
     if (!profile) return;
     const channel = supabase
       .channel(`inbox-${profile.id}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, load)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, () => {
+        load();
+        refreshUnreadCount().catch(() => undefined);
+      })
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [accepted, profile]);
+  }, [accepted, profile, refreshUnreadCount]);
 
   const labelFor = (req: TutorRequest) =>
     role === 'student' ? req.tutorName : req.studentName;
@@ -53,6 +56,16 @@ export function Mensajes() {
     role === 'student'
       ? `Tutor · ${req.subject}`
       : `${req.studentName} · ${req.subject}`;
+
+  const isUnread = (req: TutorRequest) => {
+    const last = previews.get(req.id);
+    return (
+      last != null &&
+      last.toProfileId === profile?.id &&
+      last.fromProfileId !== profile?.id &&
+      !last.readAt
+    );
+  };
 
   return (
     <div className="screen animate-in">
@@ -74,11 +87,10 @@ export function Mensajes() {
       <ul className="messages-inbox stagger-1">
         {accepted.map((req) => {
           const last = previews.get(req.id);
-          const unread =
-            last != null && last.toProfileId === profile?.id && last.fromProfileId !== profile?.id;
+          const unread = isUnread(req);
 
           return (
-            <li key={req.id} className="message-thread-card">
+            <li key={req.id} className={`message-thread-card ${unread ? 'has-unread' : ''}`}>
               <div className="message-thread-top">
                 <span className="mini-avatar">
                   {labelFor(req)
@@ -105,7 +117,7 @@ export function Mensajes() {
               <button
                 type="button"
                 className="btn-primary btn-sm"
-                onClick={() => setActiveRequestId(req.id)}
+                onClick={() => openChat(req.id)}
               >
                 {unread ? 'Ver mensaje nuevo' : 'Abrir chat'}
               </button>

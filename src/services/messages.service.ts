@@ -2,7 +2,15 @@ import { supabase } from '../lib/supabase';
 import type { ChatMessage } from '../types/database';
 import { generateId } from '../types/database';
 
-function mapMessage(row: any): ChatMessage {
+function mapMessage(row: {
+  id: string;
+  request_id: string;
+  from_profile_id: string;
+  to_profile_id: string;
+  body: string;
+  created_at: string;
+  read_at?: string | null;
+}): ChatMessage {
   return {
     id: row.id,
     requestId: row.request_id,
@@ -10,6 +18,7 @@ function mapMessage(row: any): ChatMessage {
     toProfileId: row.to_profile_id,
     body: row.body,
     createdAt: row.created_at,
+    readAt: row.read_at ?? null,
   };
 }
 
@@ -42,6 +51,32 @@ export async function getLastMessagesForRequests(
     if (!map.has(msg.requestId)) map.set(msg.requestId, msg);
   }
   return map;
+}
+
+export async function getUnreadCount(profileId: string): Promise<number> {
+  const { count, error } = await supabase
+    .from('messages')
+    .select('*', { count: 'exact', head: true })
+    .eq('to_profile_id', profileId)
+    .is('read_at', null);
+
+  if (error) throw error;
+  return count ?? 0;
+}
+
+export async function markMessagesAsRead(
+  requestId: string,
+  profileId: string,
+): Promise<void> {
+  const now = new Date().toISOString();
+  const { error } = await supabase
+    .from('messages')
+    .update({ read_at: now })
+    .eq('request_id', requestId)
+    .eq('to_profile_id', profileId)
+    .is('read_at', null);
+
+  if (error) throw error;
 }
 
 export async function sendMessage(input: {

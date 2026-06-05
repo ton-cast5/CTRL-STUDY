@@ -909,3 +909,65 @@
   color: var(--text-muted);
   white-space: nowrap;
 }
+
+.message-thread-card.has-unread {
+  border-color: var(--emerald);
+  box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.15);
+}
+
+.status-banner {
+  padding: 0.65rem 0.85rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  margin-bottom: 1rem;
+  background: var(--bg-soft);
+}
+
+.status-banner.status-pendiente {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.status-banner.status-aceptada {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.status-banner.status-rechazada {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.history-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.history-item {
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-soft);
+}
+
+.history-item > div {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.history-note {
+  margin: 0.35rem 0 0;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.history-item time {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}

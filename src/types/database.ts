@@ -74,6 +74,7 @@ export interface ChatMessage {
   toProfileId: string;
   body: string;
   createdAt: string;
+  readAt?: string | null;
 }
 
 export interface TutorReviewDisplay {
@@ -87,6 +88,7 @@ export interface TutorReviewDisplay {
 
 export interface EnrolledStudent {
   id: string;
+  studentId: string | null;
   name: string;
   semester: number;
   subject: string;

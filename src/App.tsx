@@ -1,4 +1,4 @@
-import { Layout, type Screen } from './components/Layout';
+import { Layout } from './components/Layout';
 import { Onboarding } from './screens/Onboarding';
 import { Dashboard } from './screens/Dashboard';
 import { TutorDashboard } from './screens/TutorDashboard';
@@ -7,12 +7,10 @@ import { Recursos } from './screens/Recursos';
 import { Progreso } from './screens/Progreso';
 import { Mensajes } from './screens/Mensajes';
 import { useApp } from './context/AppContext';
-import { useState } from 'react';
 import { ChatPanel } from './components/ChatPanel';
 
 function App() {
-  const { profile, role, userName, logout, loading, error } = useApp();
-  const [screen, setScreen] = useState<Screen>('dashboard');
+  const { profile, role, userName, logout, loading, error, screen, navigate } = useApp();
 
   if (!profile) {
     return <Onboarding />;
@@ -20,13 +18,13 @@ function App() {
 
   const roleLabel = role === 'tutor' ? 'Tutor DACYTI' : 'Estudiante UJAT';
 
-  const screens: Record<Screen, React.ReactNode> = {
+  const screens = {
     dashboard: role === 'tutor' ? <TutorDashboard /> : <Dashboard />,
     agenda: <Agenda role={role} />,
     mensajes: <Mensajes />,
     recursos: <Recursos />,
     progreso: <Progreso role={role} />,
-  };
+  } as const;
 
   return (
     <>
@@ -42,14 +40,11 @@ function App() {
       )}
       <Layout
         activeScreen={screen}
-        onNavigate={setScreen}
+        onNavigate={navigate}
         userName={userName}
         userRole={roleLabel}
         role={role}
-        onLogout={() => {
-          logout();
-          setScreen('dashboard');
-        }}
+        onLogout={logout}
       >
         {screens[screen]}
       </Layout>

@@ -1,10 +1,13 @@
+import { useState } from 'react';
 import { useApp } from '../context/AppContext';
+import { StudentHistoryModal } from '../components/StudentHistoryModal';
 import { IconCalendar, IconClock, IconMessage, IconStar, IconUsers } from '../components/Icons';
 import './Screens.css';
 import './TutorDashboard.css';
 
 export function TutorDashboard() {
-  const { appointments, enrollments, tutorStats, requests, respondRequest, setActiveRequestId } = useApp();
+  const { appointments, enrollments, tutorStats, requests, respondRequest, openChat } = useApp();
+  const [historyStudent, setHistoryStudent] = useState<(typeof enrollments)[number] | null>(null);
 
   const sortedAppointments = [...appointments].sort(
     (a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time),
@@ -130,7 +133,7 @@ export function TutorDashboard() {
                   </button>
                 </div>
               ) : req.status === 'aceptada' ? (
-                <button type="button" className="btn-icon-msg" onClick={() => setActiveRequestId(req.id)}>
+                <button type="button" className="btn-icon-msg" onClick={() => openChat(req.id)}>
                   <IconMessage size={18} />
                 </button>
               ) : null}
@@ -172,7 +175,11 @@ export function TutorDashboard() {
                   />
                 </div>
               </div>
-              <button type="button" className="btn-outline btn-sm">
+              <button
+                type="button"
+                className="btn-outline btn-sm"
+                onClick={() => setHistoryStudent(student)}
+              >
                 Ver historial
               </button>
             </article>
@@ -189,6 +196,15 @@ export function TutorDashboard() {
           la notificación en Ctrl+Study.
         </p>
       </div>
+
+      {historyStudent && (
+        <StudentHistoryModal
+          student={historyStudent}
+          appointments={appointments}
+          requests={requests}
+          onClose={() => setHistoryStudent(null)}
+        />
+      )}
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import type { UserRole } from '../data/mockData';
+import type { Screen } from '../types/navigation';
 import {
   IconUsers,
   IconCalendar,
@@ -11,12 +12,10 @@ import {
 import { useApp } from '../context/AppContext';
 import './Layout.css';
 
-export type Screen = 'dashboard' | 'agenda' | 'mensajes' | 'recursos' | 'progreso';
-
 interface LayoutProps {
   children: ReactNode;
   activeScreen: Screen;
-  onNavigate: (screen: Screen) => void;
+  onNavigate: (screen: Screen, options?: { agendaTutorId?: string }) => void;
   userName: string;
   userRole: string;
   role: UserRole;
@@ -48,9 +47,8 @@ export function Layout({
   role,
   onLogout,
 }: LayoutProps) {
-  const { requests } = useApp();
+  const { unreadCount } = useApp();
   const navItems = role === 'tutor' ? tutorNav : studentNav;
-  const unreadChats = requests.filter((r) => r.status === 'aceptada').length;
   return (
     <div className="layout">
       <aside className="sidebar animate-in">
@@ -72,8 +70,8 @@ export function Layout({
             >
               <Icon size={20} />
               <span>{label}</span>
-              {id === 'mensajes' && unreadChats > 0 && (
-                <span className="nav-badge">{unreadChats}</span>
+              {id === 'mensajes' && unreadCount > 0 && (
+                <span className="nav-badge">{unreadCount}</span>
               )}
             </button>
           ))}
@@ -105,8 +103,8 @@ export function Layout({
           >
             <span className="bottom-nav-icon-wrap">
               <Icon size={22} />
-              {id === 'mensajes' && unreadChats > 0 && (
-                <span className="nav-badge bottom">{unreadChats}</span>
+              {id === 'mensajes' && unreadCount > 0 && (
+                <span className="nav-badge bottom">{unreadCount}</span>
               )}
             </span>
             <span>{label}</span>

@@ -20,13 +20,19 @@ import type {
   RegisterInput,
   UserRole,
 } from '../types/database';
+import type { Screen } from '../types/navigation';
 import { loginWithCredentials, registerProfile, setProfileOnlineStatus } from '../services/profiles.service';
 import { getTutors } from '../services/tutors.service';
 import { getAppointments, countSessionsThisWeek } from '../services/appointments.service';
 import { getResources } from '../services/resources.service';
 import { getEnrollmentsByTutor } from '../services/enrollments.service';
 import { getStudentProgress } from '../services/progress.service';
-import { getMessagesByRequest, sendMessage } from '../services/messages.service';
+import {
+  getMessagesByRequest,
+  sendMessage,
+  markMessagesAsRead,
+  getUnreadCount,
+} from '../services/messages.service';
 import {
   createTutorRequest,
   getRequestsForStudent,
@@ -43,6 +49,9 @@ interface AppContextValue {
   tutorId: string | null;
   loading: boolean;
   error: string | null;
+  screen: Screen;
+  agendaTutorId: string | null;
+  unreadCount: number;
   tutors: Tutor[];
   appointments: UpcomingAppointment[];
   resources: Resource[];
@@ -55,7 +64,9 @@ interface AppContextValue {
   login: (matricula: string, password: string, role: UserRole) => Promise<void>;
   register: (input: RegisterInput) => Promise<void>;
   logout: () => void;
-  setActiveRequestId: (requestId: string | null) => void;
+  navigate: (to: Screen, options?: { agendaTutorId?: string }) => void;
+  openChat: (requestId: string) => Promise<void>;
+  closeChat: () => void;
   createRequest: (input: { tutorId: string; tutorName: string; subject: string; note: string }) => Promise<void>;
   respondRequest: (request: TutorRequest, status: 'aceptada' | 'rechazada') => Promise<void>;
   sendChatMessage: (request: TutorRequest, body: string) => Promise<void>;
@@ -67,6 +78,7 @@ interface AppContextValue {
   refreshProgress: () => Promise<void>;
   refreshRequests: () => Promise<void>;
   refreshMessages: (requestId: string) => Promise<void>;
+  refreshUnreadCount: () => Promise<void>;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -75,6 +87,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [screen, setScreen] = useState<Screen>('dashboard');
+  const [agendaTutorId, setAgendaTutorId] = useState<string | null>(null);
+  const [unreadCount, setUnreadCount] = useState(0);
   const [tutors, setTutors] = useState<Tutor[]>([]);
   const [appointments, setAppointments] = useState<UpcomingAppointment[]>([]);
   const [resources, setResources] = useState<Resource[]>([]);
@@ -101,6 +116,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
       avgRating: tutor?.rating ?? 0,
     };
   }, [appointments, enrollments, tutorId, tutors, requests]);
+
+  const refreshUnreadCount = useCallback(async () => {
+    if (!profile?.id) {
+      setUnreadCount(0);
+      return;
+    }
+    const count = await getUnreadCount(profile.id);
+    setUnreadCount(count);
+  }, [profile?.id]);
 
   const refreshTutors = useCallback(async () => {
     const data = await getTutors();
@@ -176,6 +200,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       refreshEnrollments(),
       refreshProgress(),
       refreshRequests(),
+      refreshUnreadCount(),
     ]);
 
     const failed = tasks.filter((t): t is PromiseRejectedResult => t.status === 'rejected');
@@ -186,19 +211,50 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setError(`Algunos datos no se pudieron cargar: ${details}`);
     }
     setLoading(false);
-  }, [refreshTutors, refreshAppointments, refreshResources, refreshEnrollments, refreshProgress, refreshRequests]);
+  }, [
+    refreshTutors,
+    refreshAppointments,
+    refreshResources,
+    refreshEnrollments,
+    refreshProgress,
+    refreshRequests,
+    refreshUnreadCount,
+  ]);
+
+  const navigate = useCallback((to: Screen, options?: { agendaTutorId?: string }) => {
+    setScreen(to);
+    if (options?.agendaTutorId) setAgendaTutorId(options.agendaTutorId);
+  }, []);
+
+  const openChat = useCallback(
+    async (requestId: string) => {
+      if (profile) {
+        await markMessagesAsRead(requestId, profile.id);
+        await refreshUnreadCount();
+      }
+      setActiveRequestId(requestId);
+    },
+    [profile, refreshUnreadCount],
+  );
+
+  const closeChat = useCallback(() => {
+    setActiveRequestId(null);
+  }, []);
 
   useEffect(() => {
     if (profile) refreshAll();
   }, [profile, refreshAll]);
 
   useEffect(() => {
-    if (!activeRequestId) {
+    if (!activeRequestId || !profile) {
       setMessages([]);
       return;
     }
-    refreshMessages(activeRequestId);
-  }, [activeRequestId, refreshMessages]);
+    markMessagesAsRead(activeRequestId, profile.id)
+      .then(() => refreshMessages(activeRequestId))
+      .then(() => refreshUnreadCount())
+      .catch(() => undefined);
+  }, [activeRequestId, profile, refreshMessages, refreshUnreadCount]);
 
   useEffect(() => {
     if (!profile) return;
@@ -216,6 +272,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, (payload) => {
         const row = payload.new as { request_id?: string } | null;
         const requestId = row?.request_id ?? activeRequestId;
+        refreshUnreadCount().catch(() => undefined);
         if (requestId && (requestId === activeRequestId || acceptedIds.includes(requestId))) {
           if (requestId === activeRequestId) {
             refreshMessages(activeRequestId).catch(() => undefined);
@@ -237,7 +294,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
       supabase.removeChannel(messagesChannel);
       supabase.removeChannel(presenceChannel);
     };
-  }, [profile, activeRequestId, requests, refreshRequests, refreshMessages, refreshTutors]);
+  }, [
+    profile,
+    activeRequestId,
+    requests,
+    refreshRequests,
+    refreshMessages,
+    refreshTutors,
+    refreshUnreadCount,
+  ]);
 
   const login = useCallback(
     async (matricula: string, password: string, userRole: UserRole) => {
@@ -327,6 +392,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(() => {
     if (profile) setProfileOnlineStatus(profile.id, false).catch(() => undefined);
     setProfile(null);
+    setScreen('dashboard');
+    setAgendaTutorId(null);
+    setUnreadCount(0);
     setTutors([]);
     setAppointments([]);
     setResources([]);
@@ -344,6 +412,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     tutorId,
     loading,
     error,
+    screen,
+    agendaTutorId,
+    unreadCount,
     tutors,
     appointments,
     resources,
@@ -356,7 +427,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     login,
     register,
     logout,
-    setActiveRequestId,
+    navigate,
+    openChat,
+    closeChat,
     createRequest,
     respondRequest,
     sendChatMessage: sendChatMessageSafe,
@@ -368,6 +441,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     refreshProgress,
     refreshRequests,
     refreshMessages,
+    refreshUnreadCount,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
