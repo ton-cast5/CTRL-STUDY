@@ -1,9 +1,27 @@
 import { supabase } from '../lib/supabase';
 import type { TutorRequest } from '../types/database';
-import { createEnrollment } from './enrollments.service';
+import { createEnrollment, getEnrollmentsByTutor } from './enrollments.service';
+import { createAppointment } from './appointments.service';
 import { generateId } from '../types/database';
+import {
+  defaultScheduleDate,
+  defaultScheduleTime,
+  parseScheduleFromNote,
+} from '../utils/schedule';
 
-function mapRequest(row: any): TutorRequest {
+function mapRequest(row: {
+  id: string;
+  tutor_id: string;
+  tutor_name: string;
+  student_id: string;
+  student_name: string;
+  student_avatar: string;
+  student_semester: number;
+  subject: string;
+  note?: string | null;
+  status: string;
+  created_at: string;
+}): TutorRequest {
   return {
     id: row.id,
     tutorId: row.tutor_id,
@@ -14,7 +32,7 @@ function mapRequest(row: any): TutorRequest {
     studentSemester: row.student_semester,
     subject: row.subject,
     note: row.note ?? '',
-    status: row.status,
+    status: row.status as TutorRequest['status'],
     createdAt: row.created_at,
   };
 }
@@ -70,6 +88,47 @@ export async function createTutorRequest(input: {
   return mapRequest(data);
 }
 
+async function ensureEnrollment(request: TutorRequest): Promise<void> {
+  const existing = await getEnrollmentsByTutor(request.tutorId);
+  const already = existing.some(
+    (e) => e.studentId === request.studentId && e.subject === request.subject,
+  );
+  if (!already) {
+    await createEnrollment({
+      tutorId: request.tutorId,
+      studentId: request.studentId,
+      name: request.studentName,
+      semester: request.studentSemester,
+      subject: request.subject,
+      avatar: request.studentAvatar,
+    });
+  }
+}
+
+async function ensureAppointmentFromRequest(request: TutorRequest): Promise<void> {
+  const { data: existing } = await supabase
+    .from('appointments')
+    .select('id')
+    .eq('request_id', request.id)
+    .maybeSingle();
+
+  if (existing) return;
+
+  const schedule = parseScheduleFromNote(request.note);
+  await createAppointment({
+    tutorId: request.tutorId,
+    studentId: request.studentId,
+    studentName: request.studentName,
+    studentAvatar: request.studentAvatar,
+    subject: request.subject,
+    date: schedule.date ?? defaultScheduleDate(),
+    time: schedule.time ?? defaultScheduleTime(),
+    modality: schedule.modality ?? 'Presencial',
+    requestId: request.id,
+    status: 'pendiente',
+  });
+}
+
 export async function updateTutorRequestStatus(
   request: TutorRequest,
   status: 'aceptada' | 'rechazada',
@@ -81,13 +140,7 @@ export async function updateTutorRequestStatus(
   if (error) throw error;
 
   if (status === 'aceptada') {
-    await createEnrollment({
-      tutorId: request.tutorId,
-      studentId: request.studentId,
-      name: request.studentName,
-      semester: request.studentSemester,
-      subject: request.subject,
-      avatar: request.studentAvatar,
-    });
+    await ensureEnrollment(request);
+    await ensureAppointmentFromRequest(request);
   }
 }

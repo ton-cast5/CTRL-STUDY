@@ -20,11 +20,14 @@
   flex-direction: column;
   gap: 0.35rem;
   position: relative;
-  transition: var(--transition);
+  transition:
+    transform 0.28s cubic-bezier(0.34, 1.4, 0.64, 1),
+    box-shadow 0.25s ease;
 }
 
-.tutor-stat-card:hover {
-  box-shadow: var(--shadow);
+.tutor-stat-animate:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 28px rgba(10, 92, 62, 0.12);
 }
 
 .tutor-stat-card svg {
@@ -196,6 +199,11 @@
   color: #8a7020;
 }
 
+.status-tag.completada {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
 .btn-icon-msg {
   width: 40px;
   height: 40px;
@@ -237,10 +245,16 @@
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 1rem;
-  transition: var(--transition);
+  transition:
+    transform 0.28s cubic-bezier(0.34, 1.4, 0.64, 1),
+    box-shadow 0.25s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 }
 
-.enrolled-card:hover {
+.enrolled-card-animate:hover {
+  transform: translateY(-4px);
   box-shadow: var(--shadow);
 }
 
@@ -297,10 +311,28 @@
   white-space: nowrap;
 }
 
+.appointment-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
 @media (max-width: 520px) {
   .appointment-card {
     grid-template-columns: 1fr;
     gap: 0.65rem;
+  }
+
+  .appointment-actions {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .appointment-actions .btn-sm-confirm,
+  .appointment-actions .btn-sm-complete {
+    flex: 1;
   }
 
   .btn-icon-msg {

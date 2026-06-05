@@ -72,11 +72,21 @@ export async function updateSubjectProgress(
   if (error) throw error;
 }
 
-export async function addSessionProgress(studentId: string, subject: string, hours = 1.5): Promise<void> {
+export async function addSessionProgress(
+  studentId: string,
+  subject: string,
+  hours = 1.5,
+  objectiveMet = false,
+): Promise<void> {
   const current = await getStudentProgress(studentId);
+  const objectivesMet = objectiveMet
+    ? Math.min(current.objectivesMet + 1, current.objectivesTotal)
+    : current.objectivesMet;
+
   await updateStudentProgress(studentId, {
     hoursCompleted: current.hoursCompleted + hours,
     sessionsCompleted: current.sessionsCompleted + 1,
+    objectivesMet,
   });
 
   const existing = current.subjects.find((s) => s.name === subject);

@@ -24,7 +24,7 @@ import type {
 import type { Screen } from '../types/navigation';
 import { loginWithCredentials, registerProfile, setProfileOnlineStatus, getProfileById } from '../services/profiles.service';
 import { getTutors } from '../services/tutors.service';
-import { getAppointments, countSessionsThisWeek } from '../services/appointments.service';
+import { getAppointments, countSessionsThisWeek, countCompletedSessions } from '../services/appointments.service';
 import { getResourcesForProfile } from '../services/resources.service';
 import { getEnrollmentsByTutor } from '../services/enrollments.service';
 import { getStudentProgress } from '../services/progress.service';
@@ -43,6 +43,7 @@ import {
 import { isSupabaseConfigured } from '../lib/supabase';
 import { supabase } from '../lib/supabase';
 import { saveSession, clearSession, getSavedSessionId } from '../lib/session';
+import { completeSession as completeSessionService } from '../services/sessions.service';
 
 interface AppContextValue {
   profile: Profile | null;
@@ -72,6 +73,10 @@ interface AppContextValue {
   closeChat: () => void;
   createRequest: (input: { tutorId: string; tutorName: string; subject: string; note: string }) => Promise<void>;
   respondRequest: (request: TutorRequest, status: 'aceptada' | 'rechazada') => Promise<void>;
+  completeSession: (
+    appointment: UpcomingAppointment,
+    options: { durationMinutes: number; sessionNotes?: string; objectiveMet?: boolean },
+  ) => Promise<void>;
   sendChatMessage: (request: TutorRequest, body: string) => Promise<void>;
   refreshAll: () => Promise<void>;
   refreshTutors: () => Promise<void>;
@@ -121,6 +126,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return {
       activeStudents: enrollments.length,
       sessionsThisWeek: countSessionsThisWeek(tutorAppts),
+      completedSessions: countCompletedSessions(tutorAppts),
       pendingRequests: requests.filter((r) => r.status === 'pendiente').length,
       avgRating: tutor?.rating ?? 0,
     };
@@ -147,7 +153,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         : role === 'student' && profile?.id
           ? { studentId: profile.id }
           : undefined;
-    const data = await getAppointments(filters);
+    const data = await getAppointments({ ...filters, includeCompleted: true });
     setAppointments(data);
   }, [role, tutorId, profile?.id]);
 
@@ -369,13 +375,34 @@ export function AppProvider({ children }: { children: ReactNode }) {
       })
       .subscribe();
 
+    const appointmentsChannel = supabase
+      .channel(`appointments-${profileId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'appointments' }, () => {
+        refreshAppointments().catch(() => undefined);
+        refreshEnrollments().catch(() => undefined);
+        refreshProgress().catch(() => undefined);
+        refreshTutors().catch(() => undefined);
+      })
+      .subscribe();
+
     return () => {
       supabase.removeChannel(requestsChannel);
       supabase.removeChannel(messagesChannel);
       supabase.removeChannel(presenceChannel);
       supabase.removeChannel(resourcesChannel);
+      supabase.removeChannel(appointmentsChannel);
     };
-  }, [profile, refreshRequests, refreshMessages, refreshTutors, refreshUnreadCount, refreshResources]);
+  }, [
+    profile,
+    refreshRequests,
+    refreshMessages,
+    refreshTutors,
+    refreshUnreadCount,
+    refreshResources,
+    refreshAppointments,
+    refreshEnrollments,
+    refreshProgress,
+  ]);
 
   const login = useCallback(
     async (matricula: string, password: string, userRole: UserRole) => {
@@ -431,9 +458,37 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const respondRequest = useCallback(
     async (request: TutorRequest, status: 'aceptada' | 'rechazada') => {
       await updateTutorRequestStatus(request, status);
-      await Promise.all([refreshRequests(), refreshEnrollments()]);
+      await Promise.all([
+        refreshRequests(),
+        refreshEnrollments(),
+        refreshAppointments(),
+        refreshTutors(),
+      ]);
     },
-    [refreshRequests, refreshEnrollments],
+    [refreshRequests, refreshEnrollments, refreshAppointments, refreshTutors],
+  );
+
+  const completeSession = useCallback(
+    async (
+      appointment: UpcomingAppointment,
+      options: { durationMinutes: number; sessionNotes?: string; objectiveMet?: boolean },
+    ) => {
+      if (!tutorId) throw new Error('No se encontró perfil de tutor.');
+      await completeSessionService({
+        appointment,
+        tutorId,
+        durationMinutes: options.durationMinutes,
+        sessionNotes: options.sessionNotes,
+        objectiveMet: options.objectiveMet,
+      });
+      await Promise.all([
+        refreshAppointments(),
+        refreshEnrollments(),
+        refreshProgress(),
+        refreshTutors(),
+      ]);
+    },
+    [tutorId, refreshAppointments, refreshEnrollments, refreshProgress, refreshTutors],
   );
 
   const sendChatMessageSafe = useCallback(
@@ -509,6 +564,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     closeChat,
     createRequest,
     respondRequest,
+    completeSession,
     sendChatMessage: sendChatMessageSafe,
     refreshAll,
     refreshTutors,

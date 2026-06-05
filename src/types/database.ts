@@ -107,7 +107,11 @@ export interface UpcomingAppointment {
   date: string;
   time: string;
   modality: 'Presencial' | 'En línea';
-  status: 'confirmada' | 'pendiente' | 'cancelada';
+  status: 'confirmada' | 'pendiente' | 'cancelada' | 'completada';
+  completedAt?: string | null;
+  durationMinutes?: number | null;
+  sessionNotes?: string | null;
+  requestId?: string | null;
 }
 
 export interface Resource {
@@ -136,6 +140,7 @@ export interface ProgressStats {
 export interface TutorPanelStats {
   activeStudents: number;
   sessionsThisWeek: number;
+  completedSessions: number;
   pendingRequests: number;
   avgRating: number;
 }
@@ -149,6 +154,8 @@ export interface CreateAppointmentInput {
   date: string;
   time: string;
   modality: 'Presencial' | 'En línea';
+  requestId?: string;
+  status?: 'pendiente' | 'confirmada';
 }
 
 export interface CreateResourceInput {

@@ -1,16 +1,24 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { StudentHistoryModal } from '../components/StudentHistoryModal';
-import { IconCalendar, IconClock, IconMessage, IconStar, IconUsers } from '../components/Icons';
+import { CompleteSessionModal } from '../components/CompleteSessionModal';
+import { IconCalendar, IconCheck, IconClock, IconMessage, IconStar, IconUsers } from '../components/Icons';
+import type { UpcomingAppointment } from '../types/database';
 import './Screens.css';
 import './TutorDashboard.css';
 
 export function TutorDashboard() {
-  const { appointments, enrollments, tutorStats, requests, respondRequest, openChat } = useApp();
+  const { appointments, enrollments, tutorStats, requests, respondRequest, openChat, completeSession } =
+    useApp();
   const [historyStudent, setHistoryStudent] = useState<(typeof enrollments)[number] | null>(null);
+  const [completeTarget, setCompleteTarget] = useState<UpcomingAppointment | null>(null);
 
-  const sortedAppointments = [...appointments].sort(
-    (a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time),
+  const activeAppointments = useMemo(
+    () =>
+      appointments
+        .filter((a) => a.status === 'pendiente' || a.status === 'confirmada')
+        .sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time)),
+    [appointments],
   );
 
   const formatDate = (iso: string) =>
@@ -26,27 +34,27 @@ export function TutorDashboard() {
         <div>
           <p className="screen-eyebrow">Panel del tutor · DACYTI</p>
           <h2>Mi espacio de tutoría</h2>
-          <p className="screen-desc">Alumnos inscritos, citas próximas y solicitudes pendientes</p>
+          <p className="screen-desc">Gestiona citas, solicitudes y finaliza sesiones para estadísticas</p>
         </div>
       </header>
 
       <div className="tutor-stats-row stagger-1">
-        <div className="tutor-stat-card">
+        <div className="tutor-stat-card tutor-stat-animate">
           <IconUsers size={22} />
           <span className="tutor-stat-value">{tutorStats.activeStudents}</span>
           <span className="tutor-stat-label">Alumnos activos</span>
         </div>
-        <div className="tutor-stat-card">
-          <IconCalendar size={22} />
-          <span className="tutor-stat-value">{tutorStats.sessionsThisWeek}</span>
-          <span className="tutor-stat-label">Sesiones esta semana</span>
+        <div className="tutor-stat-card tutor-stat-animate">
+          <IconCheck size={22} />
+          <span className="tutor-stat-value">{tutorStats.completedSessions}</span>
+          <span className="tutor-stat-label">Sesiones completadas</span>
         </div>
-        <div className="tutor-stat-card tutor-stat-gold">
+        <div className="tutor-stat-card tutor-stat-gold tutor-stat-animate">
           <IconStar size={22} />
           <span className="tutor-stat-value">{tutorStats.avgRating.toFixed(1)}</span>
           <span className="tutor-stat-label">Tu calificación</span>
         </div>
-        <div className="tutor-stat-card tutor-stat-alert">
+        <div className="tutor-stat-card tutor-stat-alert tutor-stat-animate">
           <span className="tutor-stat-badge">{tutorStats.pendingRequests}</span>
           <span className="tutor-stat-value">{tutorStats.pendingRequests}</span>
           <span className="tutor-stat-label">Solicitudes pendientes</span>
@@ -57,12 +65,12 @@ export function TutorDashboard() {
         <div className="section-title-row">
           <h3>
             <IconCalendar size={18} />
-            Citas próximas
+            Citas activas
           </h3>
-          <span className="section-count">{sortedAppointments.length} programadas</span>
+          <span className="section-count">{activeAppointments.length} programadas</span>
         </div>
         <ul className="appointments-list">
-          {sortedAppointments.map((apt) => (
+          {activeAppointments.map((apt) => (
             <li key={apt.id} className={`appointment-card status-${apt.status}`}>
               <div className="appointment-date-block">
                 <span className="apt-day">{formatDate(apt.date)}</span>
@@ -88,14 +96,35 @@ export function TutorDashboard() {
                   </span>
                 </div>
               </div>
-              <button type="button" className="btn-icon-msg" aria-label={`Mensaje a ${apt.studentName}`}>
-                <IconMessage size={18} />
-              </button>
+              <div className="appointment-actions dashboard-actions">
+                {apt.status === 'confirmada' && (
+                  <button
+                    type="button"
+                    className="btn-primary btn-sm-complete"
+                    onClick={() => setCompleteTarget(apt)}
+                  >
+                    Finalizar
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="btn-icon-msg"
+                  aria-label={`Mensaje a ${apt.studentName}`}
+                  onClick={() => {
+                    const req = requests.find(
+                      (r) => r.studentId === apt.studentId && r.status === 'aceptada',
+                    );
+                    if (req) openChat(req.id);
+                  }}
+                >
+                  <IconMessage size={18} />
+                </button>
+              </div>
             </li>
           ))}
         </ul>
-        {sortedAppointments.length === 0 && (
-          <p className="empty-state">No hay citas programadas.</p>
+        {activeAppointments.length === 0 && (
+          <p className="empty-state">Acepta solicitudes para generar citas automáticamente.</p>
         )}
       </section>
 
@@ -108,13 +137,18 @@ export function TutorDashboard() {
         </div>
         <ul className="appointments-list">
           {requests.map((req) => (
-            <li key={req.id} className={`appointment-card status-${req.status === 'aceptada' ? 'confirmada' : 'pendiente'}`}>
+            <li
+              key={req.id}
+              className={`appointment-card status-${req.status === 'aceptada' ? 'confirmada' : 'pendiente'}`}
+            >
               <div className="appointment-details">
                 <div className="appointment-student">
                   <span className="mini-avatar">{req.studentAvatar}</span>
                   <div>
                     <strong>{req.studentName}</strong>
-                    <span>{req.subject} · {req.studentSemester}° semestre</span>
+                    <span>
+                      {req.subject} · {req.studentSemester}° semestre
+                    </span>
                   </div>
                 </div>
                 <div className="appointment-meta">
@@ -125,10 +159,18 @@ export function TutorDashboard() {
               </div>
               {req.status === 'pendiente' ? (
                 <div className="appointment-actions">
-                  <button type="button" className="btn-primary btn-sm" onClick={() => respondRequest(req, 'aceptada')}>
+                  <button
+                    type="button"
+                    className="btn-primary btn-sm"
+                    onClick={() => respondRequest(req, 'aceptada')}
+                  >
                     Aceptar
                   </button>
-                  <button type="button" className="btn-outline btn-sm" onClick={() => respondRequest(req, 'rechazada')}>
+                  <button
+                    type="button"
+                    className="btn-outline btn-sm"
+                    onClick={() => respondRequest(req, 'rechazada')}
+                  >
                     Rechazar
                   </button>
                 </div>
@@ -140,9 +182,7 @@ export function TutorDashboard() {
             </li>
           ))}
         </ul>
-        {requests.length === 0 && (
-          <p className="empty-state">Aún no recibes solicitudes.</p>
-        )}
+        {requests.length === 0 && <p className="empty-state">Aún no recibes solicitudes.</p>}
       </section>
 
       <section className="tutor-section stagger-4">
@@ -154,7 +194,7 @@ export function TutorDashboard() {
         </div>
         <div className="enrolled-grid">
           {enrollments.map((student) => (
-            <article key={student.id} className="enrolled-card">
+            <article key={student.id} className="enrolled-card enrolled-card-animate">
               <div className="enrolled-top">
                 <span className="mini-avatar">{student.avatar}</span>
                 <div>
@@ -170,14 +210,14 @@ export function TutorDashboard() {
                 </div>
                 <div className="bar-track">
                   <div
-                    className="bar-fill"
+                    className="bar-fill bar-fill-animate"
                     style={{ width: `${Math.min(student.sessionsDone * 20, 100)}%` }}
                   />
                 </div>
               </div>
               <button
                 type="button"
-                className="btn-outline btn-sm"
+                className="btn-outline btn-sm btn-block"
                 onClick={() => setHistoryStudent(student)}
               >
                 Ver historial
@@ -186,14 +226,14 @@ export function TutorDashboard() {
           ))}
         </div>
         {enrollments.length === 0 && (
-          <p className="empty-state">Confirma citas para registrar alumnos.</p>
+          <p className="empty-state">Acepta solicitudes para registrar alumnos.</p>
         )}
       </section>
 
       <div className="tutor-tip card-panel stagger-4">
         <p>
-          <strong>Tip:</strong> Confirma las citas pendientes antes de 24 h para que tus alumnos reciban
-          la notificación en Ctrl+Study.
+          <strong>Flujo recomendado:</strong> Acepta la solicitud → Confirma la cita → Imparte la asesoría →
+          Pulsa <strong>Finalizar sesión</strong> para actualizar estadísticas y progreso del alumno.
         </p>
       </div>
 
@@ -203,6 +243,17 @@ export function TutorDashboard() {
           appointments={appointments}
           requests={requests}
           onClose={() => setHistoryStudent(null)}
+        />
+      )}
+
+      {completeTarget && (
+        <CompleteSessionModal
+          appointment={completeTarget}
+          onClose={() => setCompleteTarget(null)}
+          onComplete={async (input) => {
+            await completeSession(completeTarget, input);
+            setCompleteTarget(null);
+          }}
         />
       )}
     </div>
