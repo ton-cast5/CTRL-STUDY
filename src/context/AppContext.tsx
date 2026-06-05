@@ -450,9 +450,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         subject: input.subject,
         note: input.note,
       });
-      await refreshRequests();
+      await Promise.all([refreshRequests(), refreshAppointments()]);
     },
-    [profile, refreshRequests],
+    [profile, refreshRequests, refreshAppointments],
   );
 
   const respondRequest = useCallback(

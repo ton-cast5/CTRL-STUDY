@@ -3,10 +3,11 @@ import { subjects, semesters, type Tutor } from '../data/mockData';
 import { TutorProfileModal } from '../components/TutorProfileModal';
 import { IconSearch, IconFilter, IconStar } from '../components/Icons';
 import { useApp } from '../context/AppContext';
+import { getTutorBookingState } from '../utils/booking';
 import './Screens.css';
 
 export function Dashboard() {
-  const { tutors, loading, requests, createRequest, openChat, navigate } = useApp();
+  const { tutors, loading, requests, appointments, createRequest, openChat, navigate } = useApp();
   const [search, setSearch] = useState('');
   const [subject, setSubject] = useState('Todas');
   const [semester, setSemester] = useState('Todos');
@@ -27,9 +28,11 @@ export function Dashboard() {
     });
   }, [tutors, search, subject, semester]);
 
-  const requestByTutor = useMemo(() => {
+  const acceptedChatByTutor = useMemo(() => {
     const map = new Map<string, (typeof requests)[number]>();
-    for (const req of requests) map.set(req.tutorId, req);
+    for (const req of requests) {
+      if (req.status === 'aceptada') map.set(req.tutorId, req);
+    }
     return map;
   }, [requests]);
 
@@ -89,85 +92,122 @@ export function Dashboard() {
         <p className="empty-state">Cargando tutores...</p>
       ) : (
         <div className="tutor-grid">
-          {filtered.map((tutor, i) => (
-            <article
-              key={tutor.id}
-              className={`tutor-card animate-in stagger-${Math.min(i + 1, 4)}`}
-            >
-              <div className="tutor-card-top">
-                <div className="tutor-avatar">{tutor.avatar}</div>
-                <div className="tutor-rating">
-                  <IconStar size={14} />
-                  <span>{tutor.rating.toFixed(1)}</span>
-                </div>
-              </div>
-              <h3>{tutor.name}</h3>
-              <p className="tutor-specialty">{tutor.specialty}</p>
-              <p className={`presence-badge ${tutor.isOnline ? 'online' : 'offline'}`}>
-                {tutor.isOnline ? 'En línea' : 'Desconectado'}
-              </p>
-              <div className="tutor-tags">
-                <span className="tag">{tutor.semester}° sem</span>
-                {tutor.subjects.slice(0, 2).map((s) => (
-                  <span key={s} className="tag tag-outline">{s}</span>
-                ))}
-              </div>
-              <p className="tutor-sessions">{tutor.sessions} sesiones impartidas</p>
-              <textarea
-                className="request-note"
-                rows={2}
-                placeholder="Escribe una nota para tu solicitud..."
-                value={noteByTutor[tutor.id] ?? ''}
-                onChange={(e) => setNoteByTutor((prev) => ({ ...prev, [tutor.id]: e.target.value }))}
-              />
-              {requestByTutor.get(tutor.id)?.status === 'aceptada' ? (
-                <button
-                  type="button"
-                  className="btn-primary btn-sm"
-                  onClick={() => openChat(requestByTutor.get(tutor.id)!.id)}
-                >
-                  Enviar mensaje
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  className="btn-primary btn-sm"
-                  disabled={sendingId === tutor.id || requestByTutor.get(tutor.id)?.status === 'pendiente'}
-                  onClick={async () => {
-                    setSendingId(tutor.id);
-                    try {
-                      await createRequest({
-                        tutorId: tutor.id,
-                        tutorName: tutor.name,
-                        subject: tutor.specialty,
-                        note: noteByTutor[tutor.id] ?? '',
-                      });
-                    } finally {
-                      setSendingId(null);
-                    }
-                  }}
-                >
-                  {requestByTutor.get(tutor.id)?.status === 'pendiente'
-                    ? 'Solicitud enviada'
-                    : sendingId === tutor.id
-                      ? 'Enviando...'
-                      : 'Solicitar asesoría'}
-                </button>
-              )}
-              <button
-                type="button"
-                className="btn-outline btn-sm"
-                onClick={() => setSelectedTutor(tutor)}
-              >
-                Ver perfil
-              </button>
-            </article>
-          ))}
-        </div>
-      )}
+          {filtered.map((tutor, i) => {
+            const booking = getTutorBookingState(tutor.id, requests, appointments);
+            const chatReq = acceptedChatByTutor.get(tutor.id);
 
-      {filtered.length === 0 && !loading && (
-        <p className="empty-state">No se encontraron tutores con esos filtros.</p>
+            return (
+              <article
+                key={tutor.id}
+                className={`tutor-card animate-in stagger-${Math.min(i + 1, 4)}`}
+              >
+                <div className="tutor-card-top">
+                  <div className="tutor-avatar">{tutor.avatar}</div>
+                  <div className="tutor-rating">
+                    <IconStar size={14} />
+                    <span>{tutor.rating.toFixed(1)}</span>
+                  </div>
+                </div>
+                <h3>{tutor.name}</h3>
+                <p className="tutor-specialty">{tutor.specialty}</p>
+                <p className="tutor-availability-snippet">{tutor.availability}</p>
+                <p className={`presence-badge ${tutor.isOnline ? 'online' : 'offline'}`}>
+                  {tutor.isOnline ? 'En línea' : 'Desconectado'}
+                </p>
+                <div className="tutor-tags">
+                  <span className="tag">{tutor.semester}° sem</span>
+                  {tutor.subjects.slice(0, 2).map((s) => (
+                    <span key={s} className="tag tag-outline">{s}</span>
+                  ))}
+                </div>
+                <p className="tutor-sessions">{tutor.sessions} sesiones impartidas</p>
+
+                {booking.blockReason && !booking.canScheduleNew && (
+                  <p className="tutor-card-notice">{booking.blockReason}</p>
+                )}
+
+                {booking.canScheduleNew && booking.lastCompleted && (
+                  <p className="tutor-card-notice success">
+                    Sesión anterior completada — puedes agendar otra.
+                  </p>
+                )}
+
+                <textarea
+                  className="request-note"
+                  rows={2}
+                  placeholder="Escribe una nota para tu solicitud..."
+                  value={noteByTutor[tutor.id] ?? ''}
+                  disabled={!booking.canScheduleNew}
+                  onChange={(e) => setNoteByTutor((prev) => ({ ...prev, [tutor.id]: e.target.value }))}
+                />
+
+                <div className="tutor-card-actions">
+                  {chatReq ? (
+                    <button
+                      type="button"
+                      className="btn-outline btn-sm"
+                      onClick={() => openChat(chatReq.id)}
+                    >
+                      Mensaje
+                    </button>
+                  ) : null}
+
+                  {booking.canScheduleNew ? (
+                    <>
+                      <button
+                        type="button"
+                        className="btn-primary btn-sm"
+                        disabled={sendingId === tutor.id}
+                        onClick={async () => {
+                          setSendingId(tutor.id);
+                          try {
+                            await createRequest({
+                              tutorId: tutor.id,
+                              tutorName: tutor.name,
+                              subject: tutor.specialty,
+                              note: noteByTutor[tutor.id] ?? '',
+                            });
+                          } finally {
+                            setSendingId(null);
+                          }
+                        }}
+                      >
+                        {sendingId === tutor.id ? 'Enviando...' : 'Solicitud rápida'}
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-outline btn-sm"
+                        onClick={() => navigate('agenda', { agendaTutorId: tutor.id })}
+                      >
+                        Agendar con fecha
+                      </button>
+                    </>
+                  ) : booking.pendingRequest ? (
+                    <button type="button" className="btn-primary btn-sm" disabled>
+                      Solicitud pendiente
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      className="btn-outline btn-sm"
+                      onClick={() => navigate('agenda', { agendaTutorId: tutor.id })}
+                    >
+                      Ver mi cita
+                    </button>
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  className="btn-outline btn-sm btn-block"
+                  onClick={() => setSelectedTutor(tutor)}
+                >
+                  Ver perfil
+                </button>
+              </article>
+            );
+          })}
+        </div>
       )}
 
       {selectedTutor && (

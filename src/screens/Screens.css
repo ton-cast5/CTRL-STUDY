@@ -1223,3 +1223,87 @@
   width: 100%;
 }
 
+.availability-banner {
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  background: linear-gradient(135deg, var(--emerald-pale) 0%, #f3f8f5 100%);
+  border: 1px solid rgba(10, 92, 62, 0.15);
+  border-radius: 12px;
+  margin-bottom: 1rem;
+}
+
+.availability-banner svg {
+  color: var(--emerald-deep);
+  flex-shrink: 0;
+  margin-top: 0.15rem;
+}
+
+.availability-banner strong {
+  display: block;
+  font-size: 0.875rem;
+  color: var(--emerald-deep);
+  margin-bottom: 0.2rem;
+}
+
+.availability-banner p {
+  font-size: 0.8125rem;
+  color: var(--text);
+  margin: 0;
+}
+
+.availability-days {
+  font-size: 0.75rem !important;
+  color: var(--text-muted) !important;
+  margin-top: 0.25rem !important;
+}
+
+.field-hint {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 0.25rem;
+}
+
+.field-hint.error {
+  color: #b91c1c;
+}
+
+.time-slot.disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  text-decoration: line-through;
+}
+
+.tutor-availability-snippet {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-bottom: 0.35rem;
+}
+
+.tutor-card-notice {
+  font-size: 0.75rem;
+  color: #92400e;
+  background: #fef3c7;
+  padding: 0.45rem 0.6rem;
+  border-radius: 8px;
+  margin-bottom: 0.5rem;
+  line-height: 1.4;
+}
+
+.tutor-card-notice.success {
+  color: #065f46;
+  background: #d1fae5;
+}
+
+.tutor-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 0.5rem;
+}
+
+.tutor-card-actions .btn-sm {
+  flex: 1;
+  min-width: 120px;
+}
+

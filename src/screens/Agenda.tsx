@@ -5,6 +5,14 @@ import { CompleteSessionModal } from '../components/CompleteSessionModal';
 import { useApp } from '../context/AppContext';
 import { updateAppointmentStatus, cancelAppointment } from '../services/appointments.service';
 import type { UpcomingAppointment } from '../types/database';
+import { getTutorBookingState } from '../utils/booking';
+import {
+  formatAvailabilitySummary,
+  getAvailableDayLabels,
+  getAvailableTimeSlots,
+  isDateAvailable,
+} from '../utils/availability';
+import { formatTimeLabel } from '../utils/schedule';
 import './Screens.css';
 import './TutorDashboard.css';
 
@@ -251,7 +259,28 @@ function StudentAgendaView() {
   }, [agendaTutorId, tutors]);
 
   const tutor = tutors.find((t) => t.id === selectedTutor);
-  const existingRequest = requests.find((r) => r.tutorId === selectedTutor);
+  const booking = useMemo(
+    () => getTutorBookingState(selectedTutor, requests, appointments),
+    [selectedTutor, requests, appointments],
+  );
+
+  const availableSlots = useMemo(() => {
+    if (!tutor || !selectedDate) return [];
+    return getAvailableTimeSlots(selectedDate, tutor.availability, timeSlots);
+  }, [tutor, selectedDate]);
+
+  useEffect(() => {
+    setSelectedDate('');
+    setSelectedTime('');
+    setNote('');
+  }, [selectedTutor]);
+
+  useEffect(() => {
+    if (selectedTime && !availableSlots.includes(selectedTime)) {
+      setSelectedTime('');
+    }
+  }, [availableSlots, selectedTime]);
+
   const myAppointments = useMemo(
     () =>
       [...appointments].sort(
@@ -287,6 +316,7 @@ function StudentAgendaView() {
       setSelectedDate('');
       setSelectedTime('');
       setNote('');
+      setStudentTab('citas');
       setTimeout(() => setConfirmed(false), 4000);
     } finally {
       setSubmitting(false);
@@ -350,7 +380,18 @@ function StudentAgendaView() {
           )}
           {completedAppts.length > 0 && (
             <section className="card-panel">
-              <h3>Sesiones completadas</h3>
+              <div className="section-title-row">
+                <h3>Sesiones completadas</h3>
+                {booking.canScheduleNew && (
+                  <button
+                    type="button"
+                    className="btn-outline btn-sm"
+                    onClick={() => setStudentTab('solicitar')}
+                  >
+                    + Nueva asesoría
+                  </button>
+                )}
+              </div>
               <ul className="appointments-list compact">
                 {completedAppts.map((apt) => (
                   <li key={apt.id} className="appointment-card status-completada">
@@ -396,9 +437,33 @@ function StudentAgendaView() {
           <section className="card-panel stagger-2">
             <h3>Detalles de la solicitud</h3>
 
-            {existingRequest && (
-              <p className={`status-banner status-${existingRequest.status}`}>
-                Solicitud actual: <strong>{existingRequest.status}</strong>
+            {tutor && (
+              <div className="availability-banner animate-in">
+                <IconClock size={18} />
+                <div>
+                  <strong>Disponibilidad de {tutor.name.split(' ')[0]}</strong>
+                  <p>{formatAvailabilitySummary(tutor.availability)}</p>
+                  <p className="availability-days">Días: {getAvailableDayLabels(tutor.availability)}</p>
+                </div>
+              </div>
+            )}
+
+            {booking.blockReason && (
+              <p className={`status-banner ${booking.canScheduleNew ? 'status-aceptada' : 'status-pendiente'}`}>
+                {booking.blockReason}
+              </p>
+            )}
+
+            {booking.canScheduleNew && booking.lastCompleted && (
+              <p className="status-banner status-aceptada">
+                Tu última sesión con este tutor ya finalizó. Puedes agendar una nueva fecha y hora.
+              </p>
+            )}
+
+            {booking.pendingRequest && (
+              <p className="status-banner status-pendiente">
+                Solicitud pendiente enviada el{' '}
+                {new Date(booking.pendingRequest.createdAt).toLocaleDateString('es-MX')}
               </p>
             )}
 
@@ -408,14 +473,25 @@ function StudentAgendaView() {
                 type="date"
                 min={minDate}
                 value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
+                disabled={!booking.canScheduleNew}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (value && tutor && !isDateAvailable(value, tutor.availability)) {
+                    return;
+                  }
+                  setSelectedDate(value);
+                }}
               />
+              {selectedDate && tutor && !isDateAvailable(selectedDate, tutor.availability) && (
+                <span className="field-hint error">El tutor no atiende este día.</span>
+              )}
             </label>
 
             <label className="field-inline">
               <span>Modalidad</span>
               <select
                 value={modality}
+                disabled={!booking.canScheduleNew}
                 onChange={(e) => setModality(e.target.value as 'Presencial' | 'En línea')}
               >
                 <option value="Presencial">Presencial</option>
@@ -424,24 +500,36 @@ function StudentAgendaView() {
             </label>
 
             <p className="slots-label">Horario preferido</p>
-            <div className="time-slots">
-              {timeSlots.map((slot) => (
-                <button
-                  key={slot}
-                  type="button"
-                  className={`time-slot ${selectedTime === slot ? 'selected' : ''}`}
-                  onClick={() => setSelectedTime(slot)}
-                >
-                  {slot}
-                </button>
-              ))}
-            </div>
+            {!selectedDate ? (
+              <p className="field-hint">Selecciona una fecha para ver horarios disponibles.</p>
+            ) : availableSlots.length === 0 ? (
+              <p className="field-hint error">No hay horarios disponibles para este día según la agenda del tutor.</p>
+            ) : (
+              <div className="time-slots">
+                {timeSlots.map((slot) => {
+                  const enabled = availableSlots.includes(slot);
+                  return (
+                    <button
+                      key={slot}
+                      type="button"
+                      disabled={!booking.canScheduleNew || !enabled}
+                      className={`time-slot ${selectedTime === slot ? 'selected' : ''} ${!enabled ? 'disabled' : ''}`}
+                      onClick={() => enabled && setSelectedTime(slot)}
+                      title={enabled ? formatTimeLabel(slot) : 'Fuera de horario del tutor'}
+                    >
+                      {formatTimeLabel(slot)}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
 
             <label className="field-inline">
               <span>Nota para el tutor (opcional)</span>
               <textarea
                 rows={2}
                 value={note}
+                disabled={!booking.canScheduleNew}
                 onChange={(e) => setNote(e.target.value)}
                 placeholder="Cuéntale al tutor qué necesitas..."
               />
@@ -454,7 +542,7 @@ function StudentAgendaView() {
               {selectedDate && selectedTime && (
                 <p>
                   <strong>Preferencia:</strong>{' '}
-                  {formatDate(selectedDate)} a las {selectedTime} ({modality})
+                  {formatDate(selectedDate)} a las {formatTimeLabel(selectedTime)} ({modality})
                 </p>
               )}
             </div>
@@ -463,21 +551,20 @@ function StudentAgendaView() {
               type="button"
               className="btn-primary btn-agendar"
               disabled={
+                !booking.canScheduleNew ||
                 !selectedDate ||
                 !selectedTime ||
                 submitting ||
-                existingRequest?.status === 'pendiente' ||
-                existingRequest?.status === 'aceptada'
+                availableSlots.length === 0 ||
+                (tutor && !isDateAvailable(selectedDate, tutor.availability))
               }
               onClick={handleSubmitRequest}
             >
               {submitting
                 ? 'Enviando...'
-                : existingRequest?.status === 'pendiente'
-                  ? 'Solicitud enviada'
-                  : existingRequest?.status === 'aceptada'
-                    ? 'Solicitud aceptada'
-                    : 'Enviar solicitud de asesoría'}
+                : !booking.canScheduleNew
+                  ? 'Agenda no disponible'
+                  : 'Enviar solicitud de asesoría'}
             </button>
 
             {confirmed && (
