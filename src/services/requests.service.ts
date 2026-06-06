@@ -67,6 +67,19 @@ export async function createTutorRequest(input: {
   subject: string;
   note?: string;
 }): Promise<TutorRequest> {
+  const { data: existingPending, error: checkError } = await supabase
+    .from('tutor_requests')
+    .select('id')
+    .eq('tutor_id', input.tutorId)
+    .eq('student_id', input.studentId)
+    .eq('status', 'pendiente')
+    .maybeSingle();
+
+  if (checkError) throw checkError;
+  if (existingPending) {
+    throw new Error('Ya tienes una solicitud pendiente con este tutor.');
+  }
+
   const id = generateId('req');
   const { data, error } = await supabase
     .from('tutor_requests')
@@ -84,7 +97,12 @@ export async function createTutorRequest(input: {
     })
     .select('*')
     .single();
-  if (error) throw error;
+  if (error) {
+    if (error.code === '23505') {
+      throw new Error('Ya tienes una solicitud pendiente con este tutor para esta materia.');
+    }
+    throw error;
+  }
   return mapRequest(data);
 }
 

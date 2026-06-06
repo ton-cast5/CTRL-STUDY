@@ -250,6 +250,7 @@ function StudentAgendaView() {
   const [note, setNote] = useState('');
   const [confirmed, setConfirmed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
   const [studentTab, setStudentTab] = useState<'solicitar' | 'citas'>('solicitar');
 
   useEffect(() => {
@@ -295,7 +296,21 @@ function StudentAgendaView() {
 
   const handleSubmitRequest = async () => {
     if (!selectedDate || !selectedTime || !tutor) return;
+    if (!booking.canScheduleNew) {
+      setFormError(booking.blockReason ?? 'No puedes enviar una solicitud en este momento.');
+      return;
+    }
+    if (!isDateAvailable(selectedDate, tutor.availability)) {
+      setFormError('El tutor no atiende ese día. Elige una fecha dentro de su disponibilidad.');
+      return;
+    }
+    if (!availableSlots.includes(selectedTime)) {
+      setFormError('Elige un horario dentro de la disponibilidad del tutor.');
+      return;
+    }
+
     setSubmitting(true);
+    setFormError(null);
     try {
       const scheduleNote = [
         note.trim(),
@@ -318,6 +333,8 @@ function StudentAgendaView() {
       setNote('');
       setStudentTab('citas');
       setTimeout(() => setConfirmed(false), 4000);
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : 'No se pudo enviar la solicitud.');
     } finally {
       setSubmitting(false);
     }
@@ -449,15 +466,11 @@ function StudentAgendaView() {
             )}
 
             {booking.blockReason && (
-              <p className={`status-banner ${booking.canScheduleNew ? 'status-aceptada' : 'status-pendiente'}`}>
-                {booking.blockReason}
-              </p>
+              <p className="status-banner status-pendiente">{booking.blockReason}</p>
             )}
 
-            {booking.canScheduleNew && booking.lastCompleted && (
-              <p className="status-banner status-aceptada">
-                Tu última sesión con este tutor ya finalizó. Puedes agendar una nueva fecha y hora.
-              </p>
+            {booking.canScheduleNew && booking.warnMessage && (
+              <p className="status-banner status-aceptada">{booking.warnMessage}</p>
             )}
 
             {booking.pendingRequest && (
@@ -475,11 +488,8 @@ function StudentAgendaView() {
                 value={selectedDate}
                 disabled={!booking.canScheduleNew}
                 onChange={(e) => {
-                  const value = e.target.value;
-                  if (value && tutor && !isDateAvailable(value, tutor.availability)) {
-                    return;
-                  }
-                  setSelectedDate(value);
+                  setSelectedDate(e.target.value);
+                  setFormError(null);
                 }}
               />
               {selectedDate && tutor && !isDateAvailable(selectedDate, tutor.availability) && (
@@ -547,6 +557,8 @@ function StudentAgendaView() {
               )}
             </div>
 
+            {formError && <p className="form-error">{formError}</p>}
+
             <button
               type="button"
               className="btn-primary btn-agendar"
@@ -554,9 +566,7 @@ function StudentAgendaView() {
                 !booking.canScheduleNew ||
                 !selectedDate ||
                 !selectedTime ||
-                submitting ||
-                availableSlots.length === 0 ||
-                (tutor && !isDateAvailable(selectedDate, tutor.availability))
+                submitting
               }
               onClick={handleSubmitRequest}
             >

@@ -15,6 +15,7 @@ export function Dashboard() {
   const [selectedTutor, setSelectedTutor] = useState<Tutor | null>(null);
   const [noteByTutor, setNoteByTutor] = useState<Record<string, string>>({});
   const [sendingId, setSendingId] = useState<string | null>(null);
+  const [requestError, setRequestError] = useState<string | null>(null);
 
   const filtered = useMemo(() => {
     return tutors.filter((t) => {
@@ -88,6 +89,8 @@ export function Dashboard() {
         </div>
       )}
 
+      {requestError && <p className="form-error stagger-1">{requestError}</p>}
+
       {loading && tutors.length === 0 ? (
         <p className="empty-state">Cargando tutores...</p>
       ) : (
@@ -160,6 +163,7 @@ export function Dashboard() {
                         disabled={sendingId === tutor.id}
                         onClick={async () => {
                           setSendingId(tutor.id);
+                          setRequestError(null);
                           try {
                             await createRequest({
                               tutorId: tutor.id,
@@ -167,6 +171,11 @@ export function Dashboard() {
                               subject: tutor.specialty,
                               note: noteByTutor[tutor.id] ?? '',
                             });
+                            setNoteByTutor((prev) => ({ ...prev, [tutor.id]: '' }));
+                          } catch (err) {
+                            setRequestError(
+                              err instanceof Error ? err.message : 'No se pudo enviar la solicitud.',
+                            );
                           } finally {
                             setSendingId(null);
                           }

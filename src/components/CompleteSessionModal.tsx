@@ -29,6 +29,7 @@ export function CompleteSessionModal({
   const [objectiveMet, setObjectiveMet] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const formatDate = (iso: string) =>
     new Date(iso + 'T12:00:00').toLocaleDateString('es-MX', {
@@ -40,10 +41,13 @@ export function CompleteSessionModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
+    setError(null);
     try {
       await onComplete({ durationMinutes, sessionNotes, objectiveMet });
       setDone(true);
       setTimeout(onClose, 1400);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudo finalizar la sesión.');
     } finally {
       setSubmitting(false);
     }
@@ -129,6 +133,7 @@ export function CompleteSessionModal({
               </label>
 
               <div className="session-form-actions">
+                {error && <p className="form-error">{error}</p>}
                 <button type="button" className="btn-outline btn-sm" onClick={onClose}>
                   Cancelar
                 </button>

@@ -439,7 +439,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const createRequest = useCallback(
     async (input: { tutorId: string; tutorName: string; subject: string; note: string }) => {
-      if (!profile) return;
+      if (!profile) {
+        throw new Error('Inicia sesión para enviar una solicitud.');
+      }
       await createTutorRequest({
         tutorId: input.tutorId,
         tutorName: input.tutorName,

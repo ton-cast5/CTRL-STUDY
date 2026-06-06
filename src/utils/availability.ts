@@ -139,7 +139,7 @@ export function getAvailableTimeSlots(
 
   return allSlots.filter((slot) => {
     const min = parseTimeToMinutes(slot);
-    return windows.some((w) => min >= w.startMin && min <= w.endMin - 30);
+    return windows.some((w) => min >= w.startMin && min + 60 <= w.endMin + 60);
   });
 }
 

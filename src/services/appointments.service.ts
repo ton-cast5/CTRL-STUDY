@@ -18,6 +18,14 @@ function mapAppointment(row: {
   session_notes?: string | null;
   request_id?: string | null;
 }): UpcomingAppointment {
+  const normalizedStatus =
+    row.status === 'completada' ||
+    row.status === 'confirmada' ||
+    row.status === 'pendiente' ||
+    row.status === 'cancelada'
+      ? row.status
+      : 'pendiente';
+
   return {
     id: row.id,
     tutorId: row.tutor_id,
@@ -28,7 +36,7 @@ function mapAppointment(row: {
     date: row.appointment_date,
     time: row.appointment_time,
     modality: row.modality,
-    status: row.status,
+    status: normalizedStatus,
     completedAt: row.completed_at ?? null,
     durationMinutes: row.duration_minutes ?? null,
     sessionNotes: row.session_notes ?? null,
